@@ -48,6 +48,8 @@ model User {
 
   memberships  Membership[]
   workspaces   Workspace[] @relation("WorkspaceOwner")
+  clientsAssigned Client[]   @relation("UserAssignedClients")
+  auditLogs       AuditLog[] @relation("UserAuditLogs")
   refreshTokens RefreshToken[]
 
   @@map("users")
@@ -103,7 +105,7 @@ model Client {
   deletedAt          DateTime? @map("deleted_at")
 
   workspace          Workspace @relation(fields: [workspaceId], references: [id])
-  assignedToUser     User?     @relation(fields: [assignedToUserId], references: [id])
+  assignedToUser    User?    @relation("UserAssignedClients", fields: [assignedToUserId], references: [id])
   policies           Policy[]
   reminderLogs       ReminderLog[]
 
@@ -187,7 +189,7 @@ model AuditLog {
   createdAt   DateTime  @default(now()) @map("created_at")
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  user        User?     @relation(fields: [userId], references: [id])
+ user        User?     @relation("UserAuditLogs", fields: [userId], references: [id])
 
   @@index([workspaceId])
   @@index([userId])
