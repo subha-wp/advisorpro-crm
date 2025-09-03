@@ -4,7 +4,7 @@ import { REFRESH_COOKIE, clearAuthCookies } from "@/lib/auth/cookies"
 import { getPrisma } from "@/lib/db"
 
 export async function POST() {
-  const raw = cookies().get(REFRESH_COOKIE)?.value
+  const raw = (await cookies()).get(REFRESH_COOKIE)?.value
   if (raw) {
     const [tid] = raw.split(":")
     if (tid) {
@@ -15,6 +15,6 @@ export async function POST() {
       })
     }
   }
-  clearAuthCookies()
+  await clearAuthCookies()
   return NextResponse.json({ ok: true })
 }

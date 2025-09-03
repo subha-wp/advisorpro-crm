@@ -4,7 +4,7 @@ import { verifyJWT, type AccessPayload } from "@/lib/auth/jwt"
 import { canAccess, type Role } from "@/lib/auth/roles"
 
 export async function getServerSession() {
-  const token = cookies().get(ACCESS_COOKIE)?.value
+  const token = (await cookies()).get(ACCESS_COOKIE)?.value
   if (!token) return null
   try {
     const payload = await verifyJWT<AccessPayload>(token)

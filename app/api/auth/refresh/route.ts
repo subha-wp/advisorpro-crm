@@ -7,7 +7,7 @@ import { verifyPassword, hashPassword } from "@/lib/auth/password"
 import crypto from "node:crypto"
 
 export async function POST() {
-  const raw = cookies().get(REFRESH_COOKIE)?.value
+  const raw = (await cookies()).get(REFRESH_COOKIE)?.value
   if (!raw) return NextResponse.json({ error: "No refresh token" }, { status: 401 })
 
   // Stored as "<refreshId>:<refreshPlain>"
@@ -17,13 +17,13 @@ export async function POST() {
   const prisma = await getPrisma()
   const dbTok = await prisma.refreshToken.findUnique({ where: { id: tid } })
   if (!dbTok || dbTok.revokedAt || dbTok.expiresAt < new Date()) {
-    clearAuthCookies()
+    await clearAuthCookies()
     return NextResponse.json({ error: "Refresh invalid" }, { status: 401 })
   }
 
   const ok = await verifyPassword(plain, dbTok.tokenHash)
   if (!ok) {
-    clearAuthCookies()
+    await clearAuthCookies()
     return NextResponse.json({ error: "Refresh invalid" }, { status: 401 })
   }
 
@@ -33,7 +33,7 @@ export async function POST() {
     include: { memberships: { take: 1, orderBy: { workspaceId: "asc" } } },
   })
   if (!user) {
-    clearAuthCookies()
+    await clearAuthCookies()
     return NextResponse.json({ error: "User missing" }, { status: 401 })
   }
   const mem = user.memberships[0]
@@ -50,7 +50,7 @@ export async function POST() {
 
   const access = await signAccessToken({ sub: user.id, ws: ws!, role: role as any })
   const refresh = await signRefreshToken({ sub: user.id, tid: newTid })
-  setAuthCookies(access, `${newTid}:${newPlain}`)
+  await setAuthCookies(access, `${newTid}:${newPlain}`)
 
   return NextResponse.json({ ok: true })
 }

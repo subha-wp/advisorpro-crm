@@ -4,8 +4,8 @@ import type { NextResponse } from "next/server"
 export const ACCESS_COOKIE = "ap_access"
 export const REFRESH_COOKIE = "ap_refresh"
 
-export function setAuthCookies(access: string, refresh: string) {
-  const c = cookies()
+export async function setAuthCookies(access: string, refresh: string) {
+  const c = await cookies()
   const isProd = process.env.NODE_ENV === "production"
   c.set(ACCESS_COOKIE, access, {
     httpOnly: true,
@@ -21,8 +21,8 @@ export function setAuthCookies(access: string, refresh: string) {
   })
 }
 
-export function clearAuthCookies() {
-  const c = cookies()
+export async function clearAuthCookies() {
+  const c = await cookies()
   c.set(ACCESS_COOKIE, "", { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 0 })
   c.set(REFRESH_COOKIE, "", { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 0 })
 }
