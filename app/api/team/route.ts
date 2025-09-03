@@ -1,0 +1,186 @@
+import { NextResponse } from "next/server"
+import { NextRequest } from "next/server"
+import { z } from "zod"
+import { getPrisma } from "@/lib/db"
+import { requireRole } from "@/lib/session"
+import { ROLES } from "@/lib/auth/roles"
+import { checkUserLimit } from "@/lib/workspace-limits"
+import { createAuditLog } from "@/lib/audit"
+import { hashPassword } from "@/lib/auth/password"
+import { nameSchema, emailSchema, phoneSchema, sanitizeString, sanitizeEmail, sanitizePhone } from "@/lib/validation"
+import { apiLimiter } from "@/lib/rate-limit"
+import crypto from "node:crypto"
+
+const InviteUserSchema = z.object({
+  name: nameSchema,
+  email: emailSchema,
+  phone: phoneSchema,
+  role: z.enum(["AGENT", "VIEWER"]),
+})
+
+const UpdateMemberSchema = z.object({
+  role: z.enum(["AGENT", "VIEWER"]),
+})
+
+export async function GET(req: NextRequest) {
+  const session = await requireRole(ROLES.ANY)
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Rate limiting
+  const rateLimitResult = apiLimiter.check(req, 100, session.sub)
+  if (!rateLimitResult.success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
+  }
+
+  const prisma = await getPrisma()
+  const members = await prisma.membership.findMany({
+    where: { workspaceId: session.ws },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, phone: true, createdAt: true }
+      }
+    },
+    orderBy: { user: { createdAt: "asc" } }
+  })
+
+  const limitCheck = await checkUserLimit(session.ws)
+
+  return NextResponse.json({ 
+    items: members,
+    limits: limitCheck
+  })
+}
+
+export async function POST(req: NextRequest) {
+  const session = await requireRole(ROLES.OWNER) // Only owners can invite
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Check workspace limits
+  const limitCheck = await checkUserLimit(session.ws)
+  if (!limitCheck.canAdd) {
+    return NextResponse.json({ 
+      error: "User limit reached", 
+      details: `Maximum ${limitCheck.max} users allowed on your plan. You have ${limitCheck.remaining} slots remaining.`
+    }, { status: 402 })
+  }
+
+  // Rate limiting
+  const rateLimitResult = apiLimiter.check(req, 5, session.sub) // 5 invites per minute
+  if (!rateLimitResult.success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
+  }
+
+  const body = await req.json().catch(() => ({}))
+  const parsed = InviteUserSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ 
+      error: "Invalid input", 
+      details: parsed.error.issues.map(i => i.message)
+    }, { status: 400 })
+  }
+
+  const rawData = parsed.data
+  const data = {
+    name: sanitizeString(rawData.name),
+    email: sanitizeEmail(rawData.email),
+    phone: sanitizePhone(rawData.phone),
+    role: rawData.role,
+  }
+
+  const prisma = await getPrisma()
+
+  // Check if user already exists
+  const existingUser = await prisma.user.findFirst({
+    where: { OR: [{ email: data.email }, { phone: data.phone }] }
+  })
+
+  if (existingUser) {
+    // Check if already a member of this workspace
+    const existingMembership = await prisma.membership.findFirst({
+      where: { userId: existingUser.id, workspaceId: session.ws }
+    })
+    
+    if (existingMembership) {
+      return NextResponse.json({ 
+        error: "User is already a member of this workspace" 
+      }, { status: 409 })
+    }
+
+    // Add existing user to workspace
+    const membership = await prisma.membership.create({
+      data: {
+        userId: existingUser.id,
+        workspaceId: session.ws,
+        role: data.role,
+      }
+    })
+
+    await createAuditLog({
+      workspaceId: session.ws,
+      userId: session.sub,
+      action: "INVITE_USER",
+      entity: "MEMBERSHIP",
+      entityId: membership.id,
+      after: { userId: existingUser.id, role: data.role }
+    })
+
+    return NextResponse.json({ 
+      item: { 
+        ...membership, 
+        user: { 
+          id: existingUser.id, 
+          name: existingUser.name, 
+          email: existingUser.email, 
+          phone: existingUser.phone 
+        } 
+      } 
+    })
+  }
+
+  // Create new user with temporary password
+  const tempPassword = crypto.randomBytes(12).toString('hex')
+  const passwordHash = await hashPassword(tempPassword)
+
+  const user = await prisma.user.create({
+    data: {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      passwordHash,
+    }
+  })
+
+  const membership = await prisma.membership.create({
+    data: {
+      userId: user.id,
+      workspaceId: session.ws,
+      role: data.role,
+    }
+  })
+
+  // Audit log
+  await createAuditLog({
+    workspaceId: session.ws,
+    userId: session.sub,
+    action: "INVITE_USER",
+    entity: "MEMBERSHIP",
+    entityId: membership.id,
+    after: { userId: user.id, role: data.role, tempPassword: true }
+  })
+
+  // TODO: Send invitation email with temporary password
+  // For now, return the temp password in response (in production, this should be emailed)
+
+  return NextResponse.json({ 
+    item: { 
+      ...membership, 
+      user: { 
+        id: user.id, 
+        name: user.name, 
+        email: user.email, 
+        phone: user.phone 
+      } 
+    },
+    tempPassword // Remove this in production - send via email instead
+  })
+}
