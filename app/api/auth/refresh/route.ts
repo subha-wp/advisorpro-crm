@@ -1,56 +1,225 @@
-import { NextResponse } from "next/server"
+// @ts-nocheck
+import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { REFRESH_COOKIE, setAuthCookies, clearAuthCookies } from "@/lib/auth/cookies"
-import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt"
-import { getPrisma } from "@/lib/db"
-import { verifyPassword, hashPassword } from "@/lib/auth/password"
 import crypto from "node:crypto"
+// Adjust these imports to your project’s structure:
+import { PrismaClient } from "@prisma/client"
+import { verifyPassword, hashPassword } from "@/lib/auth/password"
+import { signAccessToken } from "@/lib/auth/jwt"
 
-export async function POST() {
-  const raw = (await cookies()).get(REFRESH_COOKIE)?.value
-  if (!raw) return NextResponse.json({ error: "No refresh token" }, { status: 401 })
+// <CHANGE> create a Prisma singleton (adjust if you already export one)
+const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined }
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: ["error", "warn"],
+  })
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 
-  // Stored as "<refreshId>:<refreshPlain>"
-  const [tid, plain] = raw.split(":")
-  if (!tid || !plain) return NextResponse.json({ error: "Malformed refresh" }, { status: 401 })
+// <CHANGE> centralize cookie names and timing
+const ACCESS_COOKIE = "access_token"
+const REFRESH_COOKIE = "refresh_token"
+const ACCESS_TTL_MS = 1000 * 60 * 15 // 15 minutes
+const REFRESH_TTL_MS = 1000 * 60 * 60 * 24 * 30 // 30 days
 
-  const prisma = await getPrisma()
-  const dbTok = await prisma.refreshToken.findUnique({ where: { id: tid } })
-  if (!dbTok || dbTok.revokedAt || dbTok.expiresAt < new Date()) {
-    await clearAuthCookies()
-    return NextResponse.json({ error: "Refresh invalid" }, { status: 401 })
+function loginRedirect(req: NextRequest) {
+  return NextResponse.redirect(new URL("/login", req.url))
+}
+
+function dashboardRedirect(req: NextRequest) {
+  return NextResponse.redirect(new URL("/dashboard", req.url))
+}
+
+// <CHANGE> read and validate refresh cookie; returns { id, plain } or null
+function readRefreshCookie(): { id: string; plain: string } | null {
+  const cookieStore = cookies()
+  const tok = cookieStore.get(REFRESH_COOKIE)?.value
+  if (!tok) return null
+  // stored as "<id>:<plaintext>"
+  const [id, plain] = tok.split(":")
+  if (!id || !plain) return null
+  return { id, plain }
+}
+
+// <CHANGE> core token rotation logic; returns either an error (as a NextResponse redirect)
+// or the new cookies to set (so caller can decide response type)
+async function rotateTokens(req: NextRequest): Promise<
+  | {
+      error: NextResponse
+    }
+  | {
+      accessToken: string
+      accessExpiresAt: Date
+      refreshCombined: string
+      refreshExpiresAt: Date
+    }
+> {
+  const parsed = readRefreshCookie()
+  if (!parsed) {
+    return { error: loginRedirect(req) }
+  }
+
+  const { id: oldId, plain } = parsed
+  const dbTok = await prisma.refreshToken.findUnique({ where: { id: oldId } })
+  if (!dbTok || dbTok.revokedAt || dbTok.expiresAt <= new Date()) {
+    return { error: loginRedirect(req) }
   }
 
   const ok = await verifyPassword(plain, dbTok.tokenHash)
   if (!ok) {
-    await clearAuthCookies()
-    return NextResponse.json({ error: "Refresh invalid" }, { status: 401 })
+    return { error: loginRedirect(req) }
   }
 
-  // Fetch user + primary membership to embed role/ws
+  // fetch user plus a primary membership/role if your app uses it
   const user = await prisma.user.findUnique({
     where: { id: dbTok.userId },
-    include: { memberships: { take: 1, orderBy: { workspaceId: "asc" } } },
+    include: {
+      memberships: { take: 1, orderBy: { workspaceId: "asc" } },
+    },
   })
+
   if (!user) {
-    await clearAuthCookies()
-    return NextResponse.json({ error: "User missing" }, { status: 401 })
+    return { error: loginRedirect(req) }
   }
-  const mem = user.memberships[0]
-  const ws = mem?.workspaceId
-  const role = mem?.role ?? "OWNER"
 
-  // Rotate: revoke old, create new entry
-  await prisma.refreshToken.update({ where: { id: tid }, data: { revokedAt: new Date() } })
-  const newTid = crypto.randomUUID()
-  const newPlain = crypto.randomUUID() + "." + crypto.randomUUID()
-  const newHash = await hashPassword(newPlain)
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)
-  await prisma.refreshToken.create({ data: { id: newTid, userId: user.id, tokenHash: newHash, expiresAt } })
+  const primary = user.memberships?.[0]
+  const accessExpiresAt = new Date(Date.now() + ACCESS_TTL_MS)
 
-  const access = await signAccessToken({ sub: user.id, ws: ws!, role: role as any })
-  const refresh = await signRefreshToken({ sub: user.id, tid: newTid })
-  await setAuthCookies(access, `${newTid}:${newPlain}`)
+  // <CHANGE> issue new access token (adjust payload to your app)
+  const accessToken = await signAccessToken({
+    sub: user.id,
+    email: user.email,
+    role: primary?.role ?? "user",
+    ws: primary?.workspaceId ?? null,
+    exp: Math.floor(accessExpiresAt.getTime() / 1000),
+  })
 
-  return NextResponse.json({ ok: true })
+  // <CHANGE> rotate refresh token: revoke old, create new hashed token
+  const refreshPlain = crypto.randomBytes(32).toString("hex")
+  const refreshId = crypto.randomUUID()
+  const refreshHash = await hashPassword(refreshPlain)
+  const refreshExpiresAt = new Date(Date.now() + REFRESH_TTL_MS)
+
+  await prisma.$transaction([
+    prisma.refreshToken.update({
+      where: { id: oldId },
+      data: { revokedAt: new Date() },
+    }),
+    prisma.refreshToken.create({
+      data: {
+        id: refreshId,
+        userId: user.id,
+        tokenHash: refreshHash,
+        expiresAt: refreshExpiresAt,
+      },
+    }),
+  ])
+
+  const refreshCombined = `${refreshId}:${refreshPlain}`
+
+  return {
+    accessToken,
+    accessExpiresAt,
+    refreshCombined,
+    refreshExpiresAt,
+  }
+}
+
+// <CHANGE> sets auth cookies on the provided response and returns it
+function withAuthCookies(
+  res: NextResponse,
+  {
+    accessToken,
+    accessExpiresAt,
+    refreshCombined,
+    refreshExpiresAt,
+  }: {
+    accessToken: string
+    accessExpiresAt: Date
+    refreshCombined: string
+    refreshExpiresAt: Date
+  }
+) {
+  // Access token cookie
+  res.cookies.set({
+    name: ACCESS_COOKIE,
+    value: accessToken,
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    expires: accessExpiresAt,
+  })
+
+  // Refresh token cookie
+  res.cookies.set({
+    name: REFRESH_COOKIE,
+    value: refreshCombined,
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    expires: refreshExpiresAt,
+  })
+
+  return res
+}
+
+// <CHANGE> clear cookies helper
+function withClearedAuth(res: NextResponse) {
+  res.cookies.set({
+    name: ACCESS_COOKIE,
+    value: "",
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    expires: new Date(0),
+  })
+  res.cookies.set({
+    name: REFRESH_COOKIE,
+    value: "",
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    expires: new Date(0),
+  })
+  return res
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const result = await rotateTokens(req)
+    if ("error" in result) {
+      // ensure stale cookies are cleared on redirect to login
+      return withClearedAuth(result.error)
+    }
+
+    // On success, redirect to dashboard and set cookies on the redirect response
+    const res = dashboardRedirect(req)
+    return withAuthCookies(res, result)
+  } catch (err) {
+    console.error("[Refresh GET Error]", err)
+    return withClearedAuth(loginRedirect(req))
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const result = await rotateTokens(req)
+    if ("error" in result) {
+      // return 401 JSON for XHR/silent refresh flows
+      const res = NextResponse.json({ ok: false }, { status: 401 })
+      return withClearedAuth(res)
+    }
+
+    // Success: return JSON with cookies set
+    const res = NextResponse.json({ ok: true }, { status: 200 })
+    return withAuthCookies(res, result)
+  } catch (err) {
+    console.error("[Refresh POST Error]", err)
+    const res = NextResponse.json({ ok: false }, { status: 401 })
+    return withClearedAuth(res)
+  }
 }

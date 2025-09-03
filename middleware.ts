@@ -46,8 +46,12 @@ export async function middleware(request: NextRequest) {
     }
     
     if (refreshToken) {
-      // Redirect to refresh endpoint for web requests
-      return NextResponse.redirect(new URL("/api/auth/refresh", request.url))
+      // For web requests, redirect to refresh endpoint which will handle the redirect
+      if (!pathname.startsWith("/api/")) {
+        return NextResponse.redirect(new URL("/api/auth/refresh", request.url))
+      }
+      // For API requests, return 401 to let client handle refresh
+      return NextResponse.json({ error: "Token expired" }, { status: 401 })
     }
 
     // No valid tokens, redirect to login
