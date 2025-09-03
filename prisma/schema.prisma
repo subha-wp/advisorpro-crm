@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  FREE
+  PREMIUM
+  PENDING
+}
+
+enum Role {
+  OWNER
+  AGENT
+  VIEWER
+}
+
+enum Channel {
+  email
+  whatsapp
+}
+
+enum PolicyStatus {
+  ACTIVE
+  LAPSED
+  MATURED
+  SURRENDERED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  MANUAL
+  CASHFREE
+  PAYU
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String?
+  email        String   @unique
+  phone        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  memberships  Membership[]
+  workspaces   Workspace[] @relation("WorkspaceOwner")
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id            String        @id @default(uuid())
+  name          String
+  ownerId       String        @map("owner_id")
+  owner         User          @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  plan          Plan          @default(FREE)
+  paymentMethod PaymentMethod? @map("payment_method")
+  paymentRef    String?        @map("payment_ref")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  memberships   Membership[]
+  clients       Client[]
+  templates     ReminderTemplate[]
+  reminderLogs  ReminderLog[]
+  auditLogs     AuditLog[]
+  billingLogs   BillingLog[]
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
+model Membership {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  workspaceId String    @map("workspace_id")
+  role        Role
+
+  user        User      @relation(fields: [userId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@map("memberships")
+}
+
+model Client {
+  id                 String    @id @default(uuid())
+  workspaceId        String    @map("workspace_id")
+  assignedToUserId   String?   @map("assigned_to_user_id")
+  name               String
+  dob                DateTime?
+  mobile             String?
+  email              String?
+  address            String?
+  tags               String[]
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt      @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
+
+  workspace          Workspace @relation(fields: [workspaceId], references: [id])
+  assignedToUser     User?     @relation(fields: [assignedToUserId], references: [id])
+  policies           Policy[]
+  reminderLogs       ReminderLog[]
+
+  @@index([workspaceId])
+  @@index([deletedAt])
+  @@map("clients")
+}
+
+model Policy {
+  id            String       @id @default(uuid())
+  clientId      String       @map("client_id")
+  insurer       String
+  planName      String?      @map("plan_name")
+  policyNumber  String       @unique @map("policy_number")
+  sumAssured    Decimal?     @map("sum_assured")
+  premiumAmount Decimal?     @map("premium_amount")
+  premiumMode   String?      @map("premium_mode")
+  nextDueDate   DateTime?    @map("next_due_date")
+  lastPaidDate  DateTime?    @map("last_paid_date")
+  maturityDate  DateTime?    @map("maturity_date")
+  status        PolicyStatus @default(ACTIVE)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt      @map("updated_at")
+
+  client        Client       @relation(fields: [clientId], references: [id])
+  reminderLogs  ReminderLog[]
+
+  @@index([clientId])
+  @@index([nextDueDate])
+  @@map("policies")
+}
+
+model ReminderTemplate {
+  id           String   @id @default(uuid())
+  workspaceId  String   @map("workspace_id")
+  name         String
+  channel      Channel
+  subject      String?
+  body         String
+  variables    String[]
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  workspace    Workspace @relation(fields: [workspaceId], references: [id])
+  reminderLogs ReminderLog[]
+
+  @@index([workspaceId])
+  @@map("reminder_templates")
+}
+
+model ReminderLog {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  clientId    String?   @map("client_id")
+  policyId    String?   @map("policy_id")
+  templateId  String?   @map("template_id")
+  channel     Channel
+  to          String    @map("to")
+  status      String
+  error       String?
+  sentAt      DateTime  @default(now()) @map("sent_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  client      Client?   @relation(fields: [clientId], references: [id])
+  policy      Policy?   @relation(fields: [policyId], references: [id])
+  template    ReminderTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([workspaceId])
+  @@index([clientId])
+  @@index([policyId])
+  @@map("reminder_logs")
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  userId      String?   @map("user_id")
+  action      String
+  entity      String
+  entityId    String?   @map("entity_id")
+  diffJson    Json?     @map("diff_json")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model BillingLog {
+  id               String        @id @default(uuid())
+  workspaceId      String        @map("workspace_id")
+  planBefore       Plan          @map("plan_before")
+  planAfter        Plan          @map("plan_after")
+  paymentMethod    PaymentMethod @map("payment_method")
+  paymentRef       String?       @map("payment_ref")
+  verifiedByAdmin  Boolean?      @map("verified_by_admin")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  workspace        Workspace     @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId])
+  @@map("billing_logs")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  tokenHash  String   @map("token_hash")
+  expiresAt  DateTime @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
