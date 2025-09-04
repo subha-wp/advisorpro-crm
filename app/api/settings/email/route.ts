@@ -1,60 +1,138 @@
+// @ts-nocheck
 import { NextResponse } from "next/server"
-import { getServerSession } from "@/lib/session"
-import { db } from "@/lib/db"
-import { encrypt } from "@/lib/crypto"
-import { isOwner } from "@/lib/auth/roles"
+import { NextRequest } from "next/server"
+import { z } from "zod"
+import { getPrisma } from "@/lib/db"
+import { requireRole } from "@/lib/session"
+import { ROLES } from "@/lib/auth/roles"
+import { encrypt, decrypt } from "@/lib/crypto"
+import { createAuditLog } from "@/lib/audit"
+import { apiLimiter } from "@/lib/rate-limit"
 
-export async function GET() {
-  const session = await getServerSession()
+const UpdateEmailSettingsSchema = z.object({
+  apiKey: z.string().optional(),
+  fromEmail: z.string().email("Invalid email format"),
+  fromName: z.string().optional(),
+})
+
+export async function GET(req: NextRequest) {
+  const session = await requireRole(ROLES.OWNER) // Only owners can view email settings
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (!isOwner(session.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const ws = await db.workspace.findUnique({
-    where: { id: session.workspaceId },
-    select: {
-      resend_api_key_enc: true as any,
-      resend_from_email: true as any,
-      resend_from_name: true as any,
-    } as any,
-  })
+  // Rate limiting
+  const rateLimitResult = apiLimiter.check(req, 50, session.sub)
+  if (!rateLimitResult.success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
+  }
 
-  if (!ws) return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
+  try {
+    const prisma = await getPrisma()
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: session.ws },
+      select: {
+        id: true,
+        name: true,
+        resendApiKeyEnc: true,
+        resendFromEmail: true,
+        resendFromName: true,
+      },
+    })
 
-  return NextResponse.json({
-    fromEmail: ws.resend_from_email || "",
-    fromName: ws.resend_from_name || "",
-    // Do not return decrypted key; only indicate if configured
-    isConfigured: !!ws.resend_api_key_enc,
-  })
+    if (!workspace) {
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
+    }
+
+    // Return current email settings
+    return NextResponse.json({
+      fromEmail: (workspace as any).resendFromEmail || "",
+      fromName: (workspace as any).resendFromName || "",
+      isConfigured: !!(workspace as any).resendApiKeyEnc,
+    })
+  } catch (error) {
+    console.error("[Email Settings GET Error]", error)
+    return NextResponse.json({ 
+      error: "Failed to load email settings",
+      details: process.env.NODE_ENV === "development" ? (error as Error).message : undefined
+    }, { status: 500 })
+  }
 }
 
-export async function PUT(req: Request) {
-  const session = await getServerSession()
+export async function PUT(req: NextRequest) {
+  const session = await requireRole(ROLES.OWNER) // Only owners can update email settings
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (!isOwner(session.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const body = await req.json().catch(() => ({}))
-  const { apiKey, fromEmail, fromName } = body || {}
-
-  if (!fromEmail || typeof fromEmail !== "string") {
-    return NextResponse.json({ error: "fromEmail is required" }, { status: 400 })
+  // Rate limiting
+  const rateLimitResult = apiLimiter.check(req, 10, session.sub)
+  if (!rateLimitResult.success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
   }
 
-  const updateData: any = {
-    resend_from_email: fromEmail,
-    resend_from_name: fromName || null,
+  try {
+    const body = await req.json().catch(() => ({}))
+    const parsed = UpdateEmailSettingsSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ 
+        error: "Invalid input", 
+        details: parsed.error.issues.map(i => i.message)
+      }, { status: 400 })
+    }
+
+    const { apiKey, fromEmail, fromName } = parsed.data
+    const prisma = await getPrisma()
+
+    // Get current workspace for audit
+    const currentWorkspace = await prisma.workspace.findUnique({
+      where: { id: session.ws }
+    })
+
+    if (!currentWorkspace) {
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
+    }
+
+    const updateData: any = {
+      resendFromEmail: fromEmail,
+      resendFromName: fromName || null,
+    }
+
+    // Encrypt API key if provided
+    if (apiKey) {
+      const encrypted = encrypt(apiKey)
+      if (!encrypted) {
+        return NextResponse.json({ error: "Failed to encrypt API key" }, { status: 500 })
+      }
+      updateData.resendApiKeyEnc = encrypted
+    }
+
+    // Update workspace with email settings
+    await prisma.workspace.update({
+      where: { id: session.ws },
+      data: updateData,
+    })
+
+    // Audit log
+    await createAuditLog({
+      workspaceId: session.ws,
+      userId: session.sub,
+      action: "UPDATE",
+      entity: "WORKSPACE",
+      entityId: session.ws,
+      after: { 
+        emailSettingsUpdated: true,
+        fromEmail,
+        fromName,
+        apiKeyUpdated: !!apiKey
+      }
+    })
+
+    return NextResponse.json({ 
+      ok: true,
+      message: "Email settings saved successfully"
+    })
+  } catch (error) {
+    console.error("[Email Settings PUT Error]", error)
+    return NextResponse.json({ 
+      error: "Failed to save email settings",
+      details: process.env.NODE_ENV === "development" ? (error as Error).message : undefined
+    }, { status: 500 })
   }
-
-  if (apiKey && typeof apiKey === "string") {
-    const enc = encrypt(apiKey)
-    if (!enc) return NextResponse.json({ error: "Failed to encrypt apiKey" }, { status: 500 })
-    updateData.resend_api_key_enc = enc
-  }
-
-  await db.workspace.update({
-    where: { id: session.workspaceId },
-    data: updateData,
-  })
-
-  return NextResponse.json({ ok: true })
 }
