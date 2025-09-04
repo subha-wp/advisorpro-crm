@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import crypto from "node:crypto"
 // Adjust these imports to your project’s structure:
@@ -7,7 +7,7 @@ import { PrismaClient } from "@prisma/client"
 import { verifyPassword, hashPassword } from "@/lib/auth/password"
 import { signAccessToken } from "@/lib/auth/jwt"
 
-// <CHANGE> create a Prisma singleton (adjust if you already export one)
+// create a Prisma singleton (adjust if you already export one)
 const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined }
 export const prisma =
   globalForPrisma.prisma ??
@@ -16,7 +16,7 @@ export const prisma =
   })
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 
-// <CHANGE> centralize cookie names and timing
+// centralize cookie names and timing
 const ACCESS_COOKIE = "access_token"
 const REFRESH_COOKIE = "refresh_token"
 const ACCESS_TTL_MS = 1000 * 60 * 15 // 15 minutes
@@ -30,9 +30,8 @@ function dashboardRedirect(req: NextRequest) {
   return NextResponse.redirect(new URL("/dashboard", req.url))
 }
 
-// <CHANGE> read and validate refresh cookie; returns { id, plain } or null
-function readRefreshCookie(): { id: string; plain: string } | null {
-  const cookieStore = cookies()
+async function readRefreshCookie(): Promise<{ id: string; plain: string } | null> {
+  const cookieStore = await cookies()
   const tok = cookieStore.get(REFRESH_COOKIE)?.value
   if (!tok) return null
   // stored as "<id>:<plaintext>"
@@ -41,7 +40,7 @@ function readRefreshCookie(): { id: string; plain: string } | null {
   return { id, plain }
 }
 
-// <CHANGE> core token rotation logic; returns either an error (as a NextResponse redirect)
+// core token rotation logic; returns either an error (as a NextResponse redirect)
 // or the new cookies to set (so caller can decide response type)
 async function rotateTokens(req: NextRequest): Promise<
   | {
@@ -54,7 +53,7 @@ async function rotateTokens(req: NextRequest): Promise<
       refreshExpiresAt: Date
     }
 > {
-  const parsed = readRefreshCookie()
+  const parsed = await readRefreshCookie()
   if (!parsed) {
     return { error: loginRedirect(req) }
   }
@@ -85,7 +84,7 @@ async function rotateTokens(req: NextRequest): Promise<
   const primary = user.memberships?.[0]
   const accessExpiresAt = new Date(Date.now() + ACCESS_TTL_MS)
 
-  // <CHANGE> issue new access token (adjust payload to your app)
+  // issue new access token (adjust payload to your app)
   const accessToken = await signAccessToken({
     sub: user.id,
     email: user.email,
@@ -94,7 +93,7 @@ async function rotateTokens(req: NextRequest): Promise<
     exp: Math.floor(accessExpiresAt.getTime() / 1000),
   })
 
-  // <CHANGE> rotate refresh token: revoke old, create new hashed token
+  // rotate refresh token: revoke old, create new hashed token
   const refreshPlain = crypto.randomBytes(32).toString("hex")
   const refreshId = crypto.randomUUID()
   const refreshHash = await hashPassword(refreshPlain)
@@ -125,7 +124,7 @@ async function rotateTokens(req: NextRequest): Promise<
   }
 }
 
-// <CHANGE> sets auth cookies on the provided response and returns it
+// sets auth cookies on the provided response and returns it
 function withAuthCookies(
   res: NextResponse,
   {
@@ -138,7 +137,7 @@ function withAuthCookies(
     accessExpiresAt: Date
     refreshCombined: string
     refreshExpiresAt: Date
-  }
+  },
 ) {
   // Access token cookie
   res.cookies.set({
@@ -165,7 +164,7 @@ function withAuthCookies(
   return res
 }
 
-// <CHANGE> clear cookies helper
+// clear cookies helper
 function withClearedAuth(res: NextResponse) {
   res.cookies.set({
     name: ACCESS_COOKIE,

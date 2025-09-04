@@ -256,7 +256,7 @@ export default function TeamPage() {
                 onChange={(e) => setForm(f => ({ ...f, role: e.target.value as any }))}
                 className="border rounded px-3 py-2 text-sm"
               >
-                <option value="AGENT">Agent - Can manage clients and policies</option>
+                <option value="AGENT">Team Member - Can manage clients and policies</option>
                 <option value="VIEWER">Viewer - Read-only access</option>
               </select>
             </div>
