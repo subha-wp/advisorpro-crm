@@ -89,6 +89,9 @@ model Workspace {
   paymentMethod PaymentMethod? @map("payment_method")
   paymentRef    String?        @map("payment_ref")
   createdAt     DateTime       @default(now()) @map("created_at")
+  resendApiKeyEnc String?      @map("resend_api_key_enc")
+  resendFromEmail String?      @map("resend_from_email")
+  resendFromName  String?      @map("resend_from_name")
 
   memberships   Membership[]
   clients       Client[]

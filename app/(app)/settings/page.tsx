@@ -3,7 +3,7 @@ import { WorkspaceSettings } from "@/components/settings/workspace-settings"
 import { ProfileSettings } from "@/components/settings/profile-settings"
 import { SecuritySettings } from "@/components/settings/security-settings"
 import { AuditLogs } from "@/components/settings/audit-logs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmailSettings } from "@/components/settings/email-settings"
 
 export default function SettingsPage() {
   return (
@@ -14,9 +14,10 @@ export default function SettingsPage() {
       </header>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="workspace">Workspace</TabsTrigger>
+          <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="audit">Audit Logs</TabsTrigger>
         </TabsList>
@@ -27,6 +28,10 @@ export default function SettingsPage() {
         
         <TabsContent value="workspace">
           <WorkspaceSettings />
+        </TabsContent>
+        
+        <TabsContent value="email">
+          <EmailSettings />
         </TabsContent>
         
         <TabsContent value="security">

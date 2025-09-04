@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextResponse } from "next/server"
 import { NextRequest } from "next/server"
 import { z } from "zod"
@@ -44,9 +43,9 @@ export async function GET(req: NextRequest) {
 
     // Return current email settings
     return NextResponse.json({
-      fromEmail: (workspace as any).resendFromEmail || "",
-      fromName: (workspace as any).resendFromName || "",
-      isConfigured: !!(workspace as any).resendApiKeyEnc,
+      fromEmail: workspace.resendFromEmail || "",
+      fromName: workspace.resendFromName || "",
+      isConfigured: !!workspace.resendApiKeyEnc,
     })
   } catch (error) {
     console.error("[Email Settings GET Error]", error)
