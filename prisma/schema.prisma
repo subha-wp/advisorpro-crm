@@ -95,6 +95,7 @@ model Workspace {
 
   memberships   Membership[]
   clients       Client[]
+  clientGroups  ClientGroup[]
   templates     ReminderTemplate[]
   reminderLogs  ReminderLog[]
   auditLogs     AuditLog[]
@@ -123,25 +124,49 @@ model Client {
   id                 String    @id @default(uuid())
   workspaceId        String    @map("workspace_id")
   assignedToUserId   String?   @map("assigned_to_user_id")
+  clientGroupId      String?   @map("client_group_id")
   name               String
   dob                DateTime?
   mobile             String?
+  panNo              String?
+  aadhaarNo          String?
   email              String?
   address            String?
   tags               String[]
+  relationshipToHead String?   @map("relationship_to_head")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt      @map("updated_at")
   deletedAt          DateTime? @map("deleted_at")
 
   workspace          Workspace @relation(fields: [workspaceId], references: [id])
-  assignedToUser    User?    @relation("UserAssignedClients", fields: [assignedToUserId], references: [id])
+  assignedToUser     User?    @relation("UserAssignedClients", fields: [assignedToUserId], references: [id])
+  clientGroup        ClientGroup? @relation(fields: [clientGroupId], references: [id])
   policies           Policy[]
   reminderLogs       ReminderLog[]
   tasks              Task[]
 
   @@index([workspaceId])
   @@index([deletedAt])
+  @@index([clientGroupId])
   @@map("clients")
+}
+
+model ClientGroup {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  name        String   // Family name like "Smith Family"
+  description String?  // Optional description
+  headClientId String? @map("head_client_id") // Primary family member
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  clients     Client[]  // All family members
+
+  @@index([workspaceId])
+  @@index([deletedAt])
+  @@map("client_groups")
 }
 
 model Policy {
@@ -220,7 +245,7 @@ model AuditLog {
   createdAt   DateTime  @default(now()) @map("created_at")
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
- user        User?     @relation("UserAuditLogs", fields: [userId], references: [id])
+  user        User?     @relation("UserAuditLogs", fields: [userId], references: [id])
 
   @@index([workspaceId])
   @@index([userId])

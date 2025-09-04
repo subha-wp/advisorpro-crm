@@ -12,6 +12,8 @@ const UpdateClientSchema = z.object({
   dob: z.string().optional(), // ISO
   tags: z.array(z.string()).optional(),
   assignedToUserId: z.string().uuid().optional(),
+  clientGroupId: z.string().uuid().optional(),
+  relationshipToHead: z.string().optional(),
 })
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
@@ -21,7 +23,17 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
   const item = await prisma.client.findFirst({
     where: { id: params.id, workspaceId: session.ws },
-    include: { policies: true },
+    include: {
+      policies: true,
+      clientGroup: {
+        include: {
+          clients: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      },
+    },
   })
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 })
   return NextResponse.json({ item })
@@ -45,6 +57,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       dob: parsed.data.dob ? new Date(parsed.data.dob) : undefined,
       tags: parsed.data.tags,
       assignedToUserId: parsed.data.assignedToUserId,
+      clientGroupId: parsed.data.clientGroupId,
+      relationshipToHead: parsed.data.relationshipToHead,
+    },
+    include: {
+      clientGroup: true,
     },
   })
 

@@ -11,7 +11,8 @@ const UpdateMemberSchema = z.object({
   role: z.enum(["AGENT", "VIEWER"]),
 })
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const {id} = await params
   const session = await requireRole(ROLES.OWNER) // Only owners can modify roles
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -34,7 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   // Get current membership
   const currentMembership = await prisma.membership.findFirst({
-    where: { id: params.id, workspaceId: session.ws },
+    where: { id: id, workspaceId: session.ws },
     include: { user: { select: { name: true, email: true } } }
   })
 
@@ -48,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const updatedMembership = await prisma.membership.update({
-    where: { id: params.id },
+    where: { id: id },
     data: { role: parsed.data.role },
     include: {
       user: {
@@ -63,7 +64,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     userId: session.sub,
     action: "CHANGE_ROLE",
     entity: "MEMBERSHIP",
-    entityId: params.id,
+    entityId: id,
     before: { role: currentMembership.role },
     after: { role: parsed.data.role },
     metadata: { targetUserId: currentMembership.userId }
