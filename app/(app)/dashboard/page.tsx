@@ -77,9 +77,9 @@ export default function DashboardPage() {
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-20 flex-col gap-2">
-              <Link href="/reminders">
-                <span className="text-lg">📧</span>
-                <span>Send Reminder</span>
+              <Link href="/tasks">
+                <span className="text-lg">✅</span>
+                <span>Create Activity</span>
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-20 flex-col gap-2">

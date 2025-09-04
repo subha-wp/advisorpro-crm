@@ -7,10 +7,11 @@ export type AuditAction =
   | "INVITE_USER" | "REMOVE_USER" | "CHANGE_ROLE"
   | "UPGRADE_PLAN" | "DOWNGRADE_PLAN"
   | "SEND_REMINDER" | "BULK_SEND"
+  | "ASSIGN_TASK" | "COMPLETE_TASK" | "CANCEL_TASK"
 
 export type AuditEntity = 
   | "USER" | "CLIENT" | "POLICY" | "TEMPLATE" 
-  | "WORKSPACE" | "MEMBERSHIP" | "REMINDER"
+  | "WORKSPACE" | "MEMBERSHIP" | "REMINDER" | "TASK"
 
 export async function createAuditLog({
   workspaceId,

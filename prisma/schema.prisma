@@ -38,6 +38,29 @@ enum PaymentMethod {
   PAYU
 }
 
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskType {
+  FOLLOW_UP
+  POLICY_RENEWAL
+  CLAIM_ASSISTANCE
+  DOCUMENTATION
+  MEETING
+  OTHER
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String?
@@ -51,6 +74,8 @@ model User {
   clientsAssigned Client[]   @relation("UserAssignedClients")
   auditLogs       AuditLog[] @relation("UserAuditLogs")
   refreshTokens RefreshToken[]
+  createdTasks    Task[]     @relation("TaskCreator")
+  assignedTasks   Task[]     @relation("TaskAssignee")
 
   @@map("users")
 }
@@ -71,6 +96,7 @@ model Workspace {
   reminderLogs  ReminderLog[]
   auditLogs     AuditLog[]
   billingLogs   BillingLog[]
+  tasks         Task[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -108,6 +134,7 @@ model Client {
   assignedToUser    User?    @relation("UserAssignedClients", fields: [assignedToUserId], references: [id])
   policies           Policy[]
   reminderLogs       ReminderLog[]
+  tasks              Task[]
 
   @@index([workspaceId])
   @@index([deletedAt])
@@ -132,6 +159,7 @@ model Policy {
 
   client        Client       @relation(fields: [clientId], references: [id])
   reminderLogs  ReminderLog[]
+  tasks         Task[]
 
   @@index([clientId])
   @@index([nextDueDate])
@@ -224,4 +252,40 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model Task {
+  id                  String       @id @default(uuid())
+  workspaceId         String       @map("workspace_id")
+  title               String
+  description         String?
+  priority            TaskPriority @default(MEDIUM)
+  status              TaskStatus   @default(PENDING)
+  type                TaskType     @default(OTHER)
+  createdByUserId     String       @map("created_by_user_id")
+  assignedToUserId    String?      @map("assigned_to_user_id")
+  clientId            String?      @map("client_id")
+  policyId            String?      @map("policy_id")
+  dueDate             DateTime?    @map("due_date")
+  completedAt         DateTime?    @map("completed_at")
+  completionRemarks   String?      @map("completion_remarks")
+  completionData      Json?        @map("completion_data")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt      @map("updated_at")
+
+  workspace           Workspace    @relation(fields: [workspaceId], references: [id])
+  createdBy           User         @relation("TaskCreator", fields: [createdByUserId], references: [id])
+  assignedTo          User?        @relation("TaskAssignee", fields: [assignedToUserId], references: [id])
+  client              Client?      @relation(fields: [clientId], references: [id])
+  policy              Policy?      @relation(fields: [policyId], references: [id])
+
+  @@index([workspaceId])
+  @@index([assignedToUserId])
+  @@index([createdByUserId])
+  @@index([clientId])
+  @@index([policyId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([priority])
+  @@map("tasks")
 }
