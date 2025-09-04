@@ -58,10 +58,10 @@ export function CreateTaskDialog({ open, onOpenChange, onSuccess }: CreateTaskDi
         priority: form.priority,
         type: form.type,
         assignedToUserId: shouldAutoAssign 
-          ? (form.assignedToUserId || currentUser?.id) 
-          : (form.assignedToUserId || undefined),
-        clientId: form.clientId || undefined,
-        policyId: form.policyId || undefined,
+          ? (form.assignedToUserId === "unassigned" ? currentUser?.id : form.assignedToUserId || currentUser?.id) 
+          : (form.assignedToUserId === "unassigned" ? undefined : form.assignedToUserId || undefined),
+        clientId: form.clientId === "none" ? undefined : form.clientId || undefined,
+        policyId: form.policyId === "none" ? undefined : form.policyId || undefined,
         dueDate: form.dueDate || undefined,
       }
 
@@ -200,7 +200,7 @@ export function CreateTaskDialog({ open, onOpenChange, onSuccess }: CreateTaskDi
                       <SelectValue placeholder="Select staff member (can assign later)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Assign later</SelectItem>
+                      <SelectItem value="unassigned">Assign later</SelectItem>
                       {teamMembers.filter((m: any) => m.role !== "OWNER").map((member: any) => (
                         <SelectItem key={member.user.id} value={member.user.id}>
                           {member.user.name} ({member.role})
@@ -208,7 +208,7 @@ export function CreateTaskDialog({ open, onOpenChange, onSuccess }: CreateTaskDi
                       ))}
                     </SelectContent>
                   </Select>
-                  {!form.assignedToUserId && (
+                  {(!form.assignedToUserId || form.assignedToUserId === "unassigned") && (
                     <p className="text-xs text-muted-foreground">
                       You can assign this activity to a staff member later
                     </p>
@@ -227,12 +227,12 @@ export function CreateTaskDialog({ open, onOpenChange, onSuccess }: CreateTaskDi
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Related Client</Label>
-              <Select value={form.clientId} onValueChange={(value) => setForm(f => ({ ...f, clientId: value }))}>
+              <Select value={form.clientId} onValueChange={(value) => setForm(f => ({ ...f, clientId: value === "none" ? "" : value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select client (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No client</SelectItem>
+                  <SelectItem value="none">No client</SelectItem>
                   {clients.map((client: any) => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name}
@@ -244,12 +244,12 @@ export function CreateTaskDialog({ open, onOpenChange, onSuccess }: CreateTaskDi
 
             <div className="grid gap-2">
               <Label>Related Policy</Label>
-              <Select value={form.policyId} onValueChange={(value) => setForm(f => ({ ...f, policyId: value }))}>
+              <Select value={form.policyId} onValueChange={(value) => setForm(f => ({ ...f, policyId: value === "none" ? "" : value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select policy (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No policy</SelectItem>
+                  <SelectItem value="none">No policy</SelectItem>
                   {policies.map((policy: any) => (
                     <SelectItem key={policy.id} value={policy.id}>
                       {policy.policyNumber} - {policy.insurer}

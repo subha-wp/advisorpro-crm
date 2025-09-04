@@ -27,7 +27,8 @@ const CompleteTaskSchema = z.object({
   }).optional(),
 })
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const {id} = await params
   const session = await requireRole(ROLES.ANY)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // Get current task to check permissions and status
   const currentTask = await prisma.task.findFirst({
     where: { 
-      id: params.id, 
+      id: id, 
       workspaceId: session.ws 
     }
   })
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const completedTask = await prisma.task.update({
-    where: { id: params.id },
+    where: { id: id },
     data: {
       status: "COMPLETED",
       completedAt: new Date(),
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     userId: session.sub,
     action: "COMPLETE_TASK",
     entity: "TASK",
-    entityId: params.id,
+    entityId: id,
     before: { status: currentTask.status },
     after: { 
       status: "COMPLETED",
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       after: {
         title: followUpTask.title,
         autoCreated: true,
-        parentTaskId: params.id,
+        parentTaskId: id,
         followUpType: parsed.data.completionData.followUpType,
       activityOutcome: parsed.data.completionData?.activityOutcome,
       clientSatisfaction: parsed.data.completionData?.clientSatisfaction,

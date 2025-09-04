@@ -49,7 +49,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json({ item: task })
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+
+  const {id} = await params
   const session = await requireRole(ROLES.ANY)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -73,7 +75,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // Get current task to check permissions
   const currentTask = await prisma.task.findFirst({
     where: { 
-      id: params.id, 
+      id: id, 
       workspaceId: session.ws 
     }
   })
@@ -146,7 +148,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const updatedTask = await prisma.task.update({
-    where: { id: params.id },
+    where: { id: id },
     data: updateData,
     include: {
       createdBy: { select: { id: true, name: true, email: true } },
@@ -162,7 +164,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     userId: session.sub,
     action: "UPDATE",
     entity: "TASK",
-    entityId: params.id,
+    entityId: id,
     before: currentTask,
     after: updateData
   })
@@ -175,7 +177,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       userId: session.sub,
       action: "ASSIGN_TASK",
       entity: "TASK",
-      entityId: params.id,
+      entityId: id,
       before: { assignedToUserId: currentTask.assignedToUserId },
       after: { assignedToUserId: updateData.assignedToUserId }
     })
@@ -184,7 +186,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ item: updatedTask })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const {id} = await params
   const session = await requireRole(ROLES.STAFF)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -199,7 +202,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   // Get task to check permissions
   const task = await prisma.task.findFirst({
     where: { 
-      id: params.id, 
+      id: id, 
       workspaceId: session.ws 
     }
   })
@@ -215,7 +218,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   }
 
   await prisma.task.delete({
-    where: { id: params.id }
+    where: { id: id }
   })
 
   // Audit log
@@ -224,7 +227,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     userId: session.sub,
     action: "DELETE",
     entity: "TASK",
-    entityId: params.id,
+    entityId: id,
     before: task
   })
 

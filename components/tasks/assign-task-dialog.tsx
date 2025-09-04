@@ -42,7 +42,7 @@ export function AssignTaskDialog({ open, onOpenChange, task, onSuccess }: Assign
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          assignedToUserId: assignedToUserId || null,
+          assignedToUserId: assignedToUserId === "unassigned" ? null : assignedToUserId || null,
         }),
       })
       
@@ -90,7 +90,7 @@ export function AssignTaskDialog({ open, onOpenChange, task, onSuccess }: Assign
                 <SelectValue placeholder="Select team member" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
                 {teamMembers.map((member: any) => (
                   <SelectItem key={member.user.id} value={member.user.id}>
                     {member.user.name} ({member.role})

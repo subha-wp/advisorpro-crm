@@ -46,19 +46,19 @@ export function TaskKanbanBoard({ filters }: TaskKanbanBoardProps) {
   // Fetch tasks for each status
   const { data: pendingData, mutate: mutatePending } = useSWR(
     `/api/tasks?status=PENDING&myTasks=${filters.myTasks}&priority=${filters.priority}&assignedTo=${filters.assignedTo}&pageSize=50`,
-    fetcher
+    fetcher,
   )
   const { data: inProgressData, mutate: mutateInProgress } = useSWR(
     `/api/tasks?status=IN_PROGRESS&myTasks=${filters.myTasks}&priority=${filters.priority}&assignedTo=${filters.assignedTo}&pageSize=50`,
-    fetcher
+    fetcher,
   )
   const { data: completedData, mutate: mutateCompleted } = useSWR(
     `/api/tasks?status=COMPLETED&myTasks=${filters.myTasks}&priority=${filters.priority}&assignedTo=${filters.assignedTo}&pageSize=50`,
-    fetcher
+    fetcher,
   )
   const { data: cancelledData, mutate: mutateCancelled } = useSWR(
     `/api/tasks?status=CANCELLED&myTasks=${filters.myTasks}&priority=${filters.priority}&assignedTo=${filters.assignedTo}&pageSize=50`,
-    fetcher
+    fetcher,
   )
 
   const tasksByStatus = {
@@ -82,49 +82,49 @@ export function TaskKanbanBoard({ filters }: TaskKanbanBoardProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       })
-      
+
       if (res.ok) {
         toast({ title: "Task updated", description: "Task status has been updated" })
         mutateAll()
       } else {
         const data = await res.json()
-        toast({ 
-          title: "Error", 
+        toast({
+          title: "Error",
           description: data.error || "Failed to update task",
-          variant: "destructive"
+          variant: "destructive",
         })
       }
     } catch (error) {
-      toast({ 
-        title: "Error", 
+      toast({
+        title: "Error",
         description: "Network error. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       })
     }
   }
 
   async function deleteTask(taskId: string) {
     if (!confirm("Are you sure you want to delete this task?")) return
-    
+
     try {
       const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" })
-      
+
       if (res.ok) {
         toast({ title: "Task deleted", description: "Task has been deleted" })
         mutateAll()
       } else {
         const data = await res.json()
-        toast({ 
-          title: "Error", 
+        toast({
+          title: "Error",
           description: data.error || "Failed to delete task",
-          variant: "destructive"
+          variant: "destructive",
         })
       }
     } catch (error) {
-      toast({ 
-        title: "Error", 
+      toast({
+        title: "Error",
         description: "Network error. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       })
     }
   }
@@ -159,17 +159,17 @@ export function TaskKanbanBoard({ filters }: TaskKanbanBoardProps) {
             </CardHeader>
             <CardContent className="space-y-3">
               {column.key === "PENDING" && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full gap-2"
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2 bg-transparent"
                   onClick={() => setCreateOpen(true)}
                 >
                   <Plus className="h-4 w-4" />
                   Add Task
                 </Button>
               )}
-              
+
               {tasksByStatus[column.key as keyof typeof tasksByStatus].map((task: any) => (
                 <TaskActivityCard
                   key={task.id}
@@ -183,7 +183,7 @@ export function TaskKanbanBoard({ filters }: TaskKanbanBoardProps) {
                   userRole={user?.role}
                 />
               ))}
-              
+
               {tasksByStatus[column.key as keyof typeof tasksByStatus].length === 0 && (
                 <div className="text-center py-8 text-muted-foreground text-sm">
                   No {column.label.toLowerCase()} tasks
@@ -195,18 +195,10 @@ export function TaskKanbanBoard({ filters }: TaskKanbanBoardProps) {
       </div>
 
       {/* Dialogs */}
-      <CreateTaskDialog 
-        open={createOpen} 
-        onOpenChange={setCreateOpen}
-        onSuccess={mutateAll}
-      />
-      
-      <TaskDetailsDialog
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        task={selectedTask}
-      />
-      
+      <CreateTaskDialog open={createOpen} onOpenChange={setCreateOpen} onSuccess={mutateAll} />
+
+      <TaskDetailsDialog open={detailsOpen} onOpenChange={setDetailsOpen} task={selectedTask} />
+
       <CompleteTaskDialog
         open={completeOpen}
         onOpenChange={setCompleteOpen}
@@ -216,7 +208,7 @@ export function TaskKanbanBoard({ filters }: TaskKanbanBoardProps) {
           setCompleteOpen(false)
         }}
       />
-      
+
       <AssignTaskDialog
         open={assignOpen}
         onOpenChange={setAssignOpen}

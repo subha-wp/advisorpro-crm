@@ -11,7 +11,8 @@ const AssignTaskSchema = z.object({
   assignedToUserId: z.string().uuid().nullable(),
 })
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const {id} = await params
   const session = await requireRole(ROLES.OWNER) // Only owners can reassign tasks
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // Get current task
   const currentTask = await prisma.task.findFirst({
     where: { 
-      id: params.id, 
+      id: id, 
       workspaceId: session.ws 
     }
   })
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const updatedTask = await prisma.task.update({
-    where: { id: params.id },
+    where: { id: id },
     data: {
       assignedToUserId: parsed.data.assignedToUserId,
     },
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     userId: session.sub,
     action: "ASSIGN_TASK",
     entity: "TASK",
-    entityId: params.id,
+    entityId: id,
     before: { assignedToUserId: currentTask.assignedToUserId },
     after: { assignedToUserId: parsed.data.assignedToUserId }
   })

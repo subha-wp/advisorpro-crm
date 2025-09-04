@@ -103,6 +103,11 @@ export async function POST(req: NextRequest) {
   // Auto-assignment logic for staff vs owner
   let finalAssignedToUserId = data.assignedToUserId
   
+  // Handle "unassigned" placeholder value
+  if (finalAssignedToUserId === "unassigned") {
+    finalAssignedToUserId = undefined
+  }
+  
   // If no assignment specified and user is staff, auto-assign to self
   if (!finalAssignedToUserId && session.role !== "OWNER") {
     finalAssignedToUserId = session.sub
