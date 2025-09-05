@@ -11,10 +11,12 @@ const UpdatePolicySchema = z.object({
   sumAssured: z.number().nullable().optional(),
   premiumAmount: z.number().nullable().optional(),
   premiumMode: z.string().optional(),
+  commencementDate: z.string().nullable().optional(),
   nextDueDate: z.string().nullable().optional(),
   lastPaidDate: z.string().nullable().optional(),
   maturityDate: z.string().nullable().optional(),
   status: z.enum(["ACTIVE", "LAPSED", "MATURED", "SURRENDERED"]).optional(),
+  metadata: z.record(z.any()).optional(),
 })
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
@@ -47,10 +49,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       sumAssured: d.sumAssured === null ? undefined : d.sumAssured,
       premiumAmount: d.premiumAmount === null ? undefined : d.premiumAmount,
       premiumMode: d.premiumMode ?? undefined,
+      commencementDate: d.commencementDate ? (d.commencementDate === null ? null : new Date(d.commencementDate)) : undefined,
       nextDueDate: d.nextDueDate ? (d.nextDueDate === null ? null : new Date(d.nextDueDate)) : undefined,
       lastPaidDate: d.lastPaidDate ? (d.lastPaidDate === null ? null : new Date(d.lastPaidDate)) : undefined,
       maturityDate: d.maturityDate ? (d.maturityDate === null ? null : new Date(d.maturityDate)) : undefined,
       status: d.status ?? undefined,
+      metadata: d.metadata ?? undefined,
     },
   })
 

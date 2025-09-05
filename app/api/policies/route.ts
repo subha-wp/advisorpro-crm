@@ -12,10 +12,12 @@ const CreatePolicySchema = z.object({
   sumAssured: z.number().optional(),
   premiumAmount: z.number().optional(),
   premiumMode: z.string().optional(),
+  commencementDate: z.string().optional(),
   nextDueDate: z.string().optional(), // ISO date
   lastPaidDate: z.string().optional(),
   maturityDate: z.string().optional(),
   status: z.enum(["ACTIVE", "LAPSED", "MATURED", "SURRENDERED"]).optional(),
+  metadata: z.record(z.any()).optional(),
 })
 
 export async function GET(req: Request) {
@@ -93,10 +95,12 @@ export async function POST(req: Request) {
       sumAssured: d.sumAssured ? d.sumAssured : undefined,
       premiumAmount: d.premiumAmount ? d.premiumAmount : undefined,
       premiumMode: d.premiumMode,
+      commencementDate: d.commencementDate ? new Date(d.commencementDate) : undefined,
       nextDueDate: d.nextDueDate ? new Date(d.nextDueDate) : undefined,
       lastPaidDate: d.lastPaidDate ? new Date(d.lastPaidDate) : undefined,
       maturityDate: d.maturityDate ? new Date(d.maturityDate) : undefined,
       status: d.status,
+      metadata: d.metadata,
     },
   })
   return NextResponse.json({ item })

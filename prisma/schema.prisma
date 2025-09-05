@@ -178,10 +178,12 @@ model Policy {
   sumAssured    Decimal?     @map("sum_assured")
   premiumAmount Decimal?     @map("premium_amount")
   premiumMode   String?      @map("premium_mode")
+  commencementDate DateTime? @map("commencement_date")
   nextDueDate   DateTime?    @map("next_due_date")
   lastPaidDate  DateTime?    @map("last_paid_date")
   maturityDate  DateTime?    @map("maturity_date")
   status        PolicyStatus @default(ACTIVE)
+  metadata      Json?        // Store additional policy details like riders, nominee, etc.
   createdAt     DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @updatedAt      @map("updated_at")
 
@@ -191,6 +193,8 @@ model Policy {
 
   @@index([clientId])
   @@index([nextDueDate])
+  @@index([commencementDate])
+  @@index([maturityDate])
   @@map("policies")
 }
 

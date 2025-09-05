@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+import { EnhancedPolicyForm } from "./enhanced-policy-form"
+import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
 import * as XLSX from "xlsx"
+import { Building2, Plus, Edit, Trash2, Download, Upload, Eye } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -38,6 +40,7 @@ const allowedSorts = [
 type SortKey = (typeof allowedSorts)[number]
 
 export function PoliciesTable() {
+  const { toast } = useToast()
   const [q, setQ] = useState("")
   const [status, setStatus] = useState<string>("")
   const [page, setPage] = useState(1)
@@ -63,98 +66,53 @@ export function PoliciesTable() {
   const total = data?.total ?? 0
   const pages = Math.max(1, Math.ceil(total / pageSize))
 
-  // Create/Edit modal
+  // Enhanced form modal
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Policy | null>(null)
-  const [form, setForm] = useState({
-    clientId: "",
-    insurer: "",
-    planName: "",
-    policyNumber: "",
-    premiumAmount: "",
-    premiumMode: "",
-    nextDueDate: "",
-    status: "ACTIVE",
-  })
 
   function openCreate() {
     setEditing(null)
-    setForm({
-      clientId: "",
-      insurer: "",
-      planName: "",
-      policyNumber: "",
-      premiumAmount: "",
-      premiumMode: "",
-      nextDueDate: "",
-      status: "ACTIVE",
-    })
     setOpen(true)
   }
 
   function openEdit(p: Policy) {
     setEditing(p)
-    setForm({
-      clientId: p.clientId,
-      insurer: p.insurer ?? "",
-      planName: p.planName ?? "",
-      policyNumber: p.policyNumber ?? "",
-      premiumAmount: p.premiumAmount ? String(p.premiumAmount) : "",
-      premiumMode: p.premiumMode ?? "",
-      nextDueDate: p.nextDueDate ? p.nextDueDate.slice(0, 10) : "",
-      status: p.status,
-    })
     setOpen(true)
   }
 
-  async function submitForm(e: React.FormEvent) {
-    e.preventDefault()
-    const payload: any = {
-      clientId: form.clientId,
-      insurer: form.insurer.trim() || undefined,
-      planName: form.planName.trim() || undefined,
-      policyNumber: form.policyNumber.trim() || undefined,
-      premiumAmount: form.premiumAmount ? Number(form.premiumAmount) : undefined,
-      premiumMode: form.premiumMode.trim() || undefined,
-      nextDueDate: form.nextDueDate || undefined,
-      status: form.status as Policy["status"],
-    }
-    if (!editing) {
-      if (!payload.clientId || !payload.insurer || !payload.policyNumber) return
-      const res = await fetch("/api/policies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
+  async function onDelete(id: string, policyNumber: string) {
+    if (!confirm(`Are you sure you want to delete policy ${policyNumber}?`)) return
+    
+    try {
+      const res = await fetch(`/api/policies/${id}`, { method: "DELETE" })
       if (res.ok) {
-        setOpen(false)
+        toast({ title: "Policy deleted", description: `Policy ${policyNumber} has been deleted` })
         mutate()
+      } else {
+        const data = await res.json()
+        toast({ 
+          title: "Error", 
+          description: data.error || "Failed to delete policy",
+          variant: "destructive"
+        })
       }
-    } else {
-      // Update
-      const res = await fetch(`/api/policies/${editing.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          insurer: payload.insurer,
-          planName: payload.planName,
-          policyNumber: payload.policyNumber,
-          premiumAmount: payload.premiumAmount,
-          premiumMode: payload.premiumMode,
-          nextDueDate: payload.nextDueDate,
-          status: payload.status,
-        }),
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Network error. Please try again.",
+        variant: "destructive"
       })
-      if (res.ok) {
-        setOpen(false)
-        mutate()
-      }
     }
   }
 
-  async function onDelete(id: string) {
-    await fetch(`/api/policies/${id}`, { method: "DELETE" })
-    mutate()
+  function getStatusColor(status: string) {
+    switch (status) {
+      case "ACTIVE": return "default"
+      case "LAPSED": return "destructive"
+      case "MATURED": return "secondary"
+      case "SURRENDERED": return "outline"
+      default: return "outline"
+    }
   }
 
   function toggleSort(key: SortKey) {
@@ -220,13 +178,21 @@ export function PoliciesTable() {
   }
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="text-balance">Policies</CardTitle>
+        <CardTitle className="text-balance flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-primary" />
+          Insurance Policies
+        </CardTitle>
         <div className="flex items-center gap-2">
-          <Input placeholder="Search..." value={q} onChange={(e) => setQ(e.target.value)} className="w-40" />
+          <Input 
+            placeholder="Search policies..." 
+            value={q} 
+            onChange={(e) => setQ(e.target.value)} 
+            className="w-48" 
+          />
           <select
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded-md px-3 py-2 text-sm bg-background"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
@@ -236,7 +202,10 @@ export function PoliciesTable() {
             <option value="MATURED">MATURED</option>
             <option value="SURRENDERED">SURRENDERED</option>
           </select>
-          <Button onClick={triggerImport}>Import CSV</Button>
+          <Button variant="outline" onClick={triggerImport} className="gap-2">
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
           <input
             ref={inputRef}
             type="file"
@@ -244,8 +213,14 @@ export function PoliciesTable() {
             className="hidden"
             onChange={handleFile}
           />
-          <Button onClick={exportCSV}>Export CSV</Button>
-          <Button onClick={openCreate}>Add Policy</Button>
+          <Button variant="outline" onClick={exportCSV} className="gap-2">
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+          <Button onClick={openCreate} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Policy
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -253,22 +228,22 @@ export function PoliciesTable() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead role="button" onClick={() => toggleSort("policyNumber")}>
+                <TableHead role="button" onClick={() => toggleSort("policyNumber")} className="cursor-pointer hover:text-primary">
                   Policy # {sort === "policyNumber" ? (dir === "asc" ? "↑" : "↓") : ""}
                 </TableHead>
-                <TableHead role="button" onClick={() => toggleSort("insurer")}>
+                <TableHead role="button" onClick={() => toggleSort("insurer")} className="cursor-pointer hover:text-primary">
                   Insurer {sort === "insurer" ? (dir === "asc" ? "↑" : "↓") : ""}
                 </TableHead>
-                <TableHead role="button" onClick={() => toggleSort("planName")}>
+                <TableHead role="button" onClick={() => toggleSort("planName")} className="cursor-pointer hover:text-primary">
                   Plan {sort === "planName" ? (dir === "asc" ? "↑" : "↓") : ""}
                 </TableHead>
-                <TableHead role="button" onClick={() => toggleSort("premiumAmount")}>
+                <TableHead role="button" onClick={() => toggleSort("premiumAmount")} className="cursor-pointer hover:text-primary">
                   Premium {sort === "premiumAmount" ? (dir === "asc" ? "↑" : "↓") : ""}
                 </TableHead>
-                <TableHead role="button" onClick={() => toggleSort("nextDueDate")}>
+                <TableHead role="button" onClick={() => toggleSort("nextDueDate")} className="cursor-pointer hover:text-primary">
                   Next Due {sort === "nextDueDate" ? (dir === "asc" ? "↑" : "↓") : ""}
                 </TableHead>
-                <TableHead role="button" onClick={() => toggleSort("status")}>
+                <TableHead role="button" onClick={() => toggleSort("status")} className="cursor-pointer hover:text-primary">
                   Status {sort === "status" ? (dir === "asc" ? "↑" : "↓") : ""}
                 </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -277,27 +252,63 @@ export function PoliciesTable() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7}>Loading...</TableCell>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      Loading policies...
+                    </div>
+                  </TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7}>No policies</TableCell>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2">
+                      <Building2 className="h-8 w-8 text-muted-foreground/50" />
+                      <span>No policies found</span>
+                      <Button size="sm" onClick={openCreate} className="mt-2">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add First Policy
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ) : (
                 items.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell>{p.policyNumber}</TableCell>
-                    <TableCell>{p.insurer}</TableCell>
-                    <TableCell>{p.planName}</TableCell>
-                    <TableCell>{p.premiumAmount ?? "-"}</TableCell>
-                    <TableCell>{p.nextDueDate ? new Date(p.nextDueDate).toLocaleDateString() : "-"}</TableCell>
-                    <TableCell>{p.status}</TableCell>
+                    <TableCell className="font-mono font-medium">{p.policyNumber}</TableCell>
+                    <TableCell className="font-medium">{p.insurer}</TableCell>
+                    <TableCell>{p.planName || "-"}</TableCell>
+                    <TableCell className="font-mono">
+                      {p.premiumAmount ? `₹ ${parseFloat(p.premiumAmount.toString()).toLocaleString('en-IN')}` : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {p.nextDueDate ? (
+                        <div className="flex items-center gap-2">
+                          <span>{new Date(p.nextDueDate).toLocaleDateString('en-IN')}</span>
+                          {new Date(p.nextDueDate) < new Date() && p.status === "ACTIVE" && (
+                            <Badge variant="destructive" className="text-xs">Overdue</Badge>
+                          )}
+                        </div>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusColor(p.status) as any}>
+                        {p.status}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
+                        <Button size="sm" variant="outline" onClick={() => openEdit(p)} className="gap-1">
+                          <Edit className="h-3 w-3" />
                           Edit
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => onDelete(p.id)}>
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          onClick={() => onDelete(p.id, p.policyNumber)}
+                          className="gap-1"
+                        >
+                          <Trash2 className="h-3 w-3" />
                           Delete
                         </Button>
                       </div>
@@ -309,103 +320,30 @@ export function PoliciesTable() {
           </Table>
         </div>
 
-        <div className="flex items-center justify-between mt-4">
+        <div className="flex items-center justify-between mt-6 pt-4 border-t">
           <span className="text-sm text-muted-foreground">
-            Page {page} of {pages} • {total} total
+            Page {page} of {pages} • {total} total policies
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-              Prev
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              Previous
             </Button>
-            <Button variant="outline" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
+            <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
               Next
             </Button>
           </div>
         </div>
       </CardContent>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit Policy" : "Add Policy"}</DialogTitle>
-          </DialogHeader>
-          <form className="grid gap-3" onSubmit={submitForm}>
-            {!editing && (
-              <div className="grid gap-1">
-                <Label>Client ID</Label>
-                <Input
-                  value={form.clientId}
-                  onChange={(e) => setForm((f) => ({ ...f, clientId: e.target.value }))}
-                  required
-                />
-              </div>
-            )}
-            <div className="grid gap-1">
-              <Label>Insurer</Label>
-              <Input
-                value={form.insurer}
-                onChange={(e) => setForm((f) => ({ ...f, insurer: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label>Plan</Label>
-              <Input value={form.planName} onChange={(e) => setForm((f) => ({ ...f, planName: e.target.value }))} />
-            </div>
-            <div className="grid gap-1">
-              <Label>Policy Number</Label>
-              <Input
-                value={form.policyNumber}
-                onChange={(e) => setForm((f) => ({ ...f, policyNumber: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label>Premium Amount</Label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={form.premiumAmount}
-                onChange={(e) => setForm((f) => ({ ...f, premiumAmount: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label>Premium Mode</Label>
-              <Input
-                value={form.premiumMode}
-                onChange={(e) => setForm((f) => ({ ...f, premiumMode: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label>Next Due Date</Label>
-              <Input
-                type="date"
-                value={form.nextDueDate}
-                onChange={(e) => setForm((f) => ({ ...f, nextDueDate: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label>Status</Label>
-              <select
-                className="border rounded px-2 py-1 text-sm"
-                value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="LAPSED">LAPSED</option>
-                <option value="MATURED">MATURED</option>
-                <option value="SURRENDERED">SURRENDERED</option>
-              </select>
-            </div>
-            <DialogFooter className="mt-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">{editing ? "Save changes" : "Create"}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <EnhancedPolicyForm
+        open={open}
+        onOpenChange={setOpen}
+        policy={editing}
+        onSuccess={() => {
+          mutate()
+          setEditing(null)
+        }}
+      />
     </Card>
   )
 }
