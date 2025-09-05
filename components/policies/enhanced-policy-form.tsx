@@ -359,7 +359,7 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
 
         <div className="">
           {/* Tab Navigation */}
-          <div className="w-48">
+          <div className="w-fit space-x-2">
             <nav className="flex py-4">
               {tabs.map((tab) => {
                 const Icon = tab.icon
