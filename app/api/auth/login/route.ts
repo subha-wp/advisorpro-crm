@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     const refreshId = crypto.randomUUID()
     const refreshPlain = crypto.randomUUID() + "." + crypto.randomUUID()
     const refreshHash = await hashPassword(refreshPlain)
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30) // 30 days
 
     await prisma.refreshToken.create({
       data: { id: refreshId, userId: user.id, tokenHash: refreshHash, expiresAt },

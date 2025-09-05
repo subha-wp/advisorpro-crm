@@ -29,7 +29,7 @@ export async function signAccessToken(payload: Omit<AccessPayload, "type">, ttlS
     .sign(getSecret())
 }
 
-export async function signRefreshToken(payload: Omit<RefreshPayload, "type">, ttlSeconds = 60 * 60 * 24 * 7) {
+export async function signRefreshToken(payload: Omit<RefreshPayload, "type">, ttlSeconds = 60 * 60 * 24 * 30) {
   const now = Math.floor(Date.now() / 1000)
   return new SignJWT({ ...payload, type: "refresh" })
     .setProtectedHeader({ alg: "HS256" })

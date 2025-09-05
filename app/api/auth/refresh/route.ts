@@ -1,26 +1,11 @@
 // @ts-nocheck
 import { type NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import crypto from "node:crypto"
-// Adjust these imports to your project’s structure:
-import { PrismaClient } from "@prisma/client"
+import { REFRESH_COOKIE, ACCESS_COOKIE } from "@/lib/auth/cookies"
+import { verifyJWT, signAccessToken, type RefreshPayload } from "@/lib/auth/jwt"
+import { getPrisma } from "@/lib/db"
 import { verifyPassword, hashPassword } from "@/lib/auth/password"
-import { signAccessToken } from "@/lib/auth/jwt"
-
-// create a Prisma singleton (adjust if you already export one)
-const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined }
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: ["error", "warn"],
-  })
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
-
-// centralize cookie names and timing
-const ACCESS_COOKIE = "access_token"
-const REFRESH_COOKIE = "refresh_token"
-const ACCESS_TTL_MS = 1000 * 60 * 15 // 15 minutes
-const REFRESH_TTL_MS = 1000 * 60 * 60 * 24 * 30 // 30 days
+import crypto from "node:crypto"
 
 function loginRedirect(req: NextRequest) {
   return NextResponse.redirect(new URL("/login", req.url))
@@ -40,17 +25,14 @@ async function readRefreshCookie(): Promise<{ id: string; plain: string } | null
   return { id, plain }
 }
 
-// core token rotation logic; returns either an error (as a NextResponse redirect)
-// or the new cookies to set (so caller can decide response type)
+// Enhanced token rotation with activity-based expiration
 async function rotateTokens(req: NextRequest): Promise<
   | {
       error: NextResponse
     }
   | {
       accessToken: string
-      accessExpiresAt: Date
       refreshCombined: string
-      refreshExpiresAt: Date
     }
 > {
   const parsed = await readRefreshCookie()
@@ -59,6 +41,7 @@ async function rotateTokens(req: NextRequest): Promise<
   }
 
   const { id: oldId, plain } = parsed
+  const prisma = await getPrisma()
   const dbTok = await prisma.refreshToken.findUnique({ where: { id: oldId } })
   if (!dbTok || dbTok.revokedAt || dbTok.expiresAt <= new Date()) {
     return { error: loginRedirect(req) }
@@ -69,7 +52,7 @@ async function rotateTokens(req: NextRequest): Promise<
     return { error: loginRedirect(req) }
   }
 
-  // fetch user plus a primary membership/role if your app uses it
+  // Fetch user with membership info
   const user = await prisma.user.findUnique({
     where: { id: dbTok.userId },
     include: {
@@ -82,22 +65,22 @@ async function rotateTokens(req: NextRequest): Promise<
   }
 
   const primary = user.memberships?.[0]
-  const accessExpiresAt = new Date(Date.now() + ACCESS_TTL_MS)
+  if (!primary) {
+    return { error: loginRedirect(req) }
+  }
 
-  // issue new access token (adjust payload to your app)
+  // Issue new access token with 15-minute expiry
   const accessToken = await signAccessToken({
     sub: user.id,
-    email: user.email,
-    role: primary?.role ?? "user",
-    ws: primary?.workspaceId ?? null,
-    exp: Math.floor(accessExpiresAt.getTime() / 1000),
+    ws: primary.workspaceId,
+    role: primary.role as any,
   })
 
-  // rotate refresh token: revoke old, create new hashed token
+  // Create new refresh token
   const refreshPlain = crypto.randomBytes(32).toString("hex")
   const refreshId = crypto.randomUUID()
   const refreshHash = await hashPassword(refreshPlain)
-  const refreshExpiresAt = new Date(Date.now() + REFRESH_TTL_MS)
+  const refreshExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30) // 30 days
 
   await prisma.$transaction([
     prisma.refreshToken.update({
@@ -118,36 +101,31 @@ async function rotateTokens(req: NextRequest): Promise<
 
   return {
     accessToken,
-    accessExpiresAt,
     refreshCombined,
-    refreshExpiresAt,
   }
 }
 
-// sets auth cookies on the provided response and returns it
 function withAuthCookies(
   res: NextResponse,
   {
     accessToken,
-    accessExpiresAt,
     refreshCombined,
-    refreshExpiresAt,
   }: {
     accessToken: string
-    accessExpiresAt: Date
     refreshCombined: string
-    refreshExpiresAt: Date
   },
 ) {
+  const isProd = process.env.NODE_ENV === "production"
+  
   // Access token cookie
   res.cookies.set({
     name: ACCESS_COOKIE,
     value: accessToken,
     httpOnly: true,
-    secure: true,
+    secure: isProd,
     sameSite: "lax",
     path: "/",
-    expires: accessExpiresAt,
+    // Don't set expires for access token - let it be session-based
   })
 
   // Refresh token cookie
@@ -155,16 +133,15 @@ function withAuthCookies(
     name: REFRESH_COOKIE,
     value: refreshCombined,
     httpOnly: true,
-    secure: true,
+    secure: isProd,
     sameSite: "lax",
     path: "/",
-    expires: refreshExpiresAt,
+    maxAge: 60 * 60 * 24 * 30, // 30 days
   })
 
   return res
 }
 
-// clear cookies helper
 function withClearedAuth(res: NextResponse) {
   res.cookies.set({
     name: ACCESS_COOKIE,
@@ -191,11 +168,9 @@ export async function GET(req: NextRequest) {
   try {
     const result = await rotateTokens(req)
     if ("error" in result) {
-      // ensure stale cookies are cleared on redirect to login
       return withClearedAuth(result.error)
     }
 
-    // On success, redirect to dashboard and set cookies on the redirect response
     const res = dashboardRedirect(req)
     return withAuthCookies(res, result)
   } catch (err) {
@@ -208,12 +183,10 @@ export async function POST(req: NextRequest) {
   try {
     const result = await rotateTokens(req)
     if ("error" in result) {
-      // return 401 JSON for XHR/silent refresh flows
       const res = NextResponse.json({ ok: false }, { status: 401 })
       return withClearedAuth(res)
     }
 
-    // Success: return JSON with cookies set
     const res = NextResponse.json({ ok: true }, { status: 200 })
     return withAuthCookies(res, result)
   } catch (err) {

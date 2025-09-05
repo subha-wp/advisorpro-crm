@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { verifyJWT, type AccessPayload } from "@/lib/auth/jwt"
+import { signAccessToken } from "@/lib/auth/jwt"
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/auth/cookies"
 
 const publicPaths = ["/login", "/signup", "/auth/login", "/auth/signup", "/auth/forgot", "/auth/reset"]
@@ -30,6 +31,25 @@ export async function middleware(request: NextRequest) {
     const payload = await verifyJWT<AccessPayload>(accessToken)
     if (payload.type !== "access") {
       throw new Error("Invalid token type")
+    }
+
+    // Check if token is close to expiry (within 5 minutes)
+    const now = Math.floor(Date.now() / 1000)
+    const timeUntilExpiry = payload.exp! - now
+    
+    // If token expires in less than 5 minutes, try to refresh it
+    if (timeUntilExpiry < 300) { // 5 minutes
+      if (refreshToken) {
+        // For API requests, let client handle refresh
+        if (pathname.startsWith("/api/")) {
+          const response = NextResponse.next()
+          response.headers.set("x-user-id", payload.sub)
+          response.headers.set("x-workspace-id", payload.ws)
+          response.headers.set("x-user-role", payload.role)
+          response.headers.set("x-token-refresh-needed", "true")
+          return response
+        }
+      }
     }
 
     // Add user info to headers for API routes
