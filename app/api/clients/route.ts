@@ -61,6 +61,8 @@ export async function GET(req: NextRequest) {
             { name: { contains: q, mode: "insensitive" } },
             { mobile: { contains: q } },
             { email: { contains: q, mode: "insensitive" } },
+            { panNo: { contains: q, mode: "insensitive" } },
+            { aadhaarNo: { contains: q } },
             { tags: { has: q } },
             { clientGroup: { name: { contains: q, mode: "insensitive" } } },
           ],
@@ -75,7 +77,22 @@ export async function GET(req: NextRequest) {
     prisma.client.findMany({
       where,
       include: {
-        clientGroup: true,
+        clientGroup: {
+          include: {
+            clients: {
+              where: { deletedAt: null },
+              select: { 
+                id: true, 
+                name: true, 
+                relationshipToHead: true,
+                panNo: true,
+                mobile: true,
+                email: true
+              },
+              orderBy: { relationshipToHead: "asc" }
+            }
+          }
+        },
       },
       orderBy: { [sort]: dir },
       take: pageSize,

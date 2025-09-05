@@ -12,13 +12,23 @@ import { EnhancedPolicyForm } from "./enhanced-policy-form"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from "xlsx"
-import { Building2, Plus, Edit, Trash2, Download, Upload, Eye } from "lucide-react"
+import { Building2, Plus, Edit, Trash2, Download, Upload, Eye, Users } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 type Policy = {
   id: string
   clientId: string
+  client?: {
+    id: string
+    name: string
+    mobile?: string
+    email?: string
+    clientGroup?: {
+      id: string
+      name: string
+    }
+  }
   insurer: string
   planName?: string
   policyNumber: string
@@ -69,14 +79,23 @@ export function PoliciesTable() {
   // Enhanced form modal
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Policy | null>(null)
+  const [preselectedClient, setPreselectedClient] = useState<any>(null)
 
   function openCreate() {
     setEditing(null)
+    setPreselectedClient(null)
+    setOpen(true)
+  }
+
+  function openCreateForClient(client: any) {
+    setEditing(null)
+    setPreselectedClient(client)
     setOpen(true)
   }
 
   function openEdit(p: Policy) {
     setEditing(p)
+    setPreselectedClient(null)
     setOpen(true)
   }
 
@@ -228,6 +247,7 @@ export function PoliciesTable() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Client</TableHead>
                 <TableHead role="button" onClick={() => toggleSort("policyNumber")} className="cursor-pointer hover:text-primary">
                   Policy # {sort === "policyNumber" ? (dir === "asc" ? "↑" : "↓") : ""}
                 </TableHead>
@@ -252,7 +272,7 @@ export function PoliciesTable() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                       Loading policies...
@@ -261,7 +281,7 @@ export function PoliciesTable() {
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
                       <Building2 className="h-8 w-8 text-muted-foreground/50" />
                       <span>No policies found</span>
@@ -275,6 +295,26 @@ export function PoliciesTable() {
               ) : (
                 items.map((p) => (
                   <TableRow key={p.id}>
+                    <TableCell>
+                      {p.client ? (
+                        <div>
+                          <div className="font-medium">{p.client.name}</div>
+                          {p.client.clientGroup && (
+                            <Badge variant="secondary" className="text-xs mt-1">
+                              <Users className="h-3 w-3 mr-1" />
+                              {p.client.clientGroup.name}
+                            </Badge>
+                          )}
+                          {p.client.mobile && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {p.client.mobile}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Unknown Client</span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-mono font-medium">{p.policyNumber}</TableCell>
                     <TableCell className="font-medium">{p.insurer}</TableCell>
                     <TableCell>{p.planName || "-"}</TableCell>
@@ -342,6 +382,7 @@ export function PoliciesTable() {
         onSuccess={() => {
           mutate()
           setEditing(null)
+          setPreselectedClient(null)
         }}
       />
     </Card>

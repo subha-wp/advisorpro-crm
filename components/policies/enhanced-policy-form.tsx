@@ -18,11 +18,11 @@ import { useToast } from "@/hooks/use-toast"
 import { CalendarIcon, Calculator, FileText, User, Building2, CreditCard, Settings, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { ClientSearchSelect } from "./client-search-select"
 
 interface EnhancedPolicyFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  client?: any
   policy?: any
   onSuccess?: () => void
 }
@@ -71,6 +71,7 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
   const { toast } = useToast()
   const [submitting, setSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState("basic")
+  const [selectedClient, setSelectedClient] = useState<any>(null)
 
   // Form state
   const [form, setForm] = useState({
@@ -149,6 +150,7 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
     if (open) {
       if (policy) {
         // Edit mode
+        setSelectedClient(null) // Will be loaded from policy.clientId
         setForm({
           clientId: policy.clientId,
           policyNumber: policy.policyNumber || "",
@@ -181,8 +183,9 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
         })
       } else {
         // Create mode
+        setSelectedClient(null)
         setForm({
-          clientId: client?.id || "",
+          clientId: "",
           policyNumber: "",
           insurer: "",
           planName: "",
@@ -213,7 +216,25 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
         })
       }
     }
-  }, [open, policy, client])
+  }, [open, policy])
+
+  // Load client data when clientId changes (for edit mode)
+  useEffect(() => {
+    if (form.clientId && !selectedClient) {
+      const loadClient = async () => {
+        try {
+          const res = await fetch(`/api/clients/${form.clientId}`)
+          if (res.ok) {
+            const data = await res.json()
+            setSelectedClient(data.item)
+          }
+        } catch (error) {
+          console.error("Failed to load client:", error)
+        }
+      }
+      loadClient()
+    }
+  }, [form.clientId, selectedClient])
 
   function addRider() {
     setForm((f) => ({
@@ -234,6 +255,11 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
       ...f,
       riders: f.riders.map((rider, i) => (i === index ? { ...rider, [field]: value } : rider)),
     }))
+  }
+
+  function handleClientSelect(client: any) {
+    setSelectedClient(client)
+    setForm(f => ({ ...f, clientId: client.id }))
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -322,10 +348,10 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Building2 className="h-6 w-6 text-primary" />
             {policy ? "Edit Policy" : "LIC Policy Entry"}
-            {client && (
+            {selectedClient && (
               <Badge variant="outline" className="ml-2">
                 <User className="h-3 w-3 mr-1" />
-                {client.name}
+                {selectedClient.name}
               </Badge>
             )}
           </DialogTitle>
@@ -362,31 +388,11 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
               {/* Basic Details Tab */}
               {activeTab === "basic" && (
                 <div className="space-y-6">
-                  <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
-                    <CardHeader className="bg-orange-100 dark:bg-orange-900/30">
-                      <CardTitle className="text-orange-800 dark:text-orange-200 flex items-center gap-2">
-                        <User className="h-5 w-5" />
-                        Policy Holder's Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label>Policy Holder</Label>
-                          <div className="flex items-center gap-2 p-3 bg-background rounded-md border">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{client?.name || "Select Client"}</span>
-                          </div>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Mobile</Label>
-                          <div className="flex items-center gap-2 p-3 bg-background rounded-md border">
-                            <span className="text-muted-foreground">{client?.mobile || "Not provided"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {/* Client Search and Selection */}
+                  <ClientSearchSelect
+                    selectedClientId={form.clientId}
+                    onClientSelect={handleClientSelect}
+                  />
 
                   <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
                     <CardHeader className="bg-orange-100 dark:bg-orange-900/30">
@@ -908,6 +914,7 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                   {activeTab !== "advanced" ? (
                     <Button
                       type="button"
+                      disabled={activeTab === "basic" && !form.clientId}
                       onClick={() => {
                         const currentIndex = tabs.findIndex((t) => t.id === activeTab)
                         if (currentIndex < tabs.length - 1) {
@@ -915,10 +922,10 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                         }
                       }}
                     >
-                      Next Step
+                      {activeTab === "basic" && !form.clientId ? "Select Client First" : "Next Step"}
                     </Button>
                   ) : (
-                    <Button type="submit" disabled={submitting} className="bg-primary">
+                    <Button type="submit" disabled={submitting || !form.clientId} className="bg-primary">
                       {submitting ? "Saving..." : policy ? "Update Policy" : "Create Policy"}
                     </Button>
                   )}

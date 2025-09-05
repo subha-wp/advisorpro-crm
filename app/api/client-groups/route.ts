@@ -42,7 +42,18 @@ export async function GET(req: NextRequest) {
       include: {
         clients: {
           where: { deletedAt: null },
-          select: { id: true, name: true, relationshipToHead: true },
+          select: { 
+            id: true, 
+            name: true, 
+            relationshipToHead: true,
+            panNo: true,
+            mobile: true,
+            email: true
+          },
+          orderBy: [
+            { relationshipToHead: "asc" },
+            { name: "asc" }
+          ]
         },
         _count: {
           select: { clients: { where: { deletedAt: null } } },

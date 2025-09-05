@@ -292,6 +292,10 @@ export function ClientsTable() {
               <UserPlus className="h-4 w-4 mr-2" />
               Add Client
             </Button>
+            <Button onClick={() => setFamilyWorkflowOpen(true)} variant="outline">
+              <Workflow className="h-4 w-4 mr-2" />
+              Add Family
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -360,6 +364,16 @@ export function ClientsTable() {
                           </Button>
                         ) : (
                           <div className="flex items-center gap-2 justify-end">
+                            <Button 
+                              size="sm" 
+                              variant="secondary" 
+                              onClick={() => {
+                                // Navigate to policies page with this client preselected
+                                window.location.href = `/policies?clientId=${c.id}`
+                              }}
+                            >
+                              Add Policy
+                            </Button>
                             <Button size="sm" variant="outline" onClick={() => openEdit(c)}>
                               Edit
                             </Button>
@@ -392,7 +406,7 @@ export function ClientsTable() {
         </CardContent>
 
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="w-96">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit Client" : "Add Client"}</DialogTitle>
             </DialogHeader>

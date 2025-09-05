@@ -63,6 +63,19 @@ export async function GET(req: Request) {
   const [items, total] = await Promise.all([
     prisma.policy.findMany({
       where,
+      include: {
+        client: {
+          select: { 
+            id: true, 
+            name: true, 
+            mobile: true, 
+            email: true,
+            clientGroup: {
+              select: { id: true, name: true }
+            }
+          }
+        }
+      },
       orderBy: { [sort]: dir },
       take: pageSize,
       skip: (page - 1) * pageSize,
