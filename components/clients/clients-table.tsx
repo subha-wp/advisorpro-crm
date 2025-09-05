@@ -392,7 +392,7 @@ export function ClientsTable() {
         </CardContent>
 
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-96">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit Client" : "Add Client"}</DialogTitle>
             </DialogHeader>
