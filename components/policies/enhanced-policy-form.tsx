@@ -317,7 +317,7 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[85vw] max-w-[85vw] max-h-[95vh] p-2">
+      <DialogContent className="max-w-fit max-h-[95vh] p-2 overflow-y-scroll">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Building2 className="h-6 w-6 text-primary" />

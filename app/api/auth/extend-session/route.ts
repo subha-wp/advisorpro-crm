@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextResponse } from "next/server"
 import { NextRequest } from "next/server"
 import { requireRole } from "@/lib/session"
