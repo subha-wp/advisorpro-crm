@@ -54,6 +54,14 @@ const filterOptions = [
 
 export function PremiumList() {
   const [premiums, setPremiums] = useState<PremiumRecord[]>([])
+  const [summary, setSummary] = useState({
+    total: 0,
+    upcoming: 0,
+    overdue: 0,
+    paid: 0,
+    unpaid: 0,
+    totalAmount: 0,
+  })
   const [filteredPremiums, setFilteredPremiums] = useState<PremiumRecord[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("ALL")
@@ -92,7 +100,15 @@ export function PremiumList() {
       const response = await fetch("/api/premiums")
       if (response.ok) {
         const data = await response.json()
-        setPremiums(data)
+        setPremiums(data.premiums || [])
+        setSummary(data.summary || {
+          total: 0,
+          upcoming: 0,
+          overdue: 0,
+          paid: 0,
+          unpaid: 0,
+          totalAmount: 0,
+        })
       }
     } catch (error) {
       console.error("Error fetching premiums:", error)
@@ -192,14 +208,13 @@ export function PremiumList() {
   }
 
   const getFilterCounts = () => {
-    const counts = {
-      ALL: premiums.length,
-      UPCOMING: premiums.filter((p) => p.status === "UPCOMING").length,
-      OVERDUE: premiums.filter((p) => p.status === "OVERDUE").length,
-      PAID: premiums.filter((p) => p.status === "PAID").length,
-      UNPAID: premiums.filter((p) => p.status === "UNPAID").length,
+    return {
+      ALL: summary.total,
+      UPCOMING: summary.upcoming,
+      OVERDUE: summary.overdue,
+      PAID: summary.paid,
+      UNPAID: summary.unpaid,
     }
-    return counts
   }
 
   const counts = getFilterCounts()
@@ -216,6 +231,52 @@ export function PremiumList() {
 
   return (
     <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Premiums</p>
+                <p className="text-2xl font-bold">{counts.ALL}</p>
+              </div>
+              <Filter className="h-8 w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Overdue</p>
+                <p className="text-2xl font-bold text-destructive">{counts.OVERDUE}</p>
+              </div>
+              <Calendar className="h-8 w-8 text-destructive" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Upcoming</p>
+                <p className="text-2xl font-bold text-blue-600">{counts.UPCOMING}</p>
+              </div>
+              <Calendar className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Paid</p>
+                <p className="text-2xl font-bold text-green-600">{counts.PAID}</p>
+              </div>
+              <IndianRupee className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -375,52 +436,7 @@ export function PremiumList() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Premiums</p>
-                <p className="text-2xl font-bold">{counts.ALL}</p>
-              </div>
-              <Filter className="h-8 w-8 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Overdue</p>
-                <p className="text-2xl font-bold text-destructive">{counts.OVERDUE}</p>
-              </div>
-              <Calendar className="h-8 w-8 text-destructive" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Upcoming</p>
-                <p className="text-2xl font-bold text-blue-600">{counts.UPCOMING}</p>
-              </div>
-              <Calendar className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Paid</p>
-                <p className="text-2xl font-bold text-green-600">{counts.PAID}</p>
-              </div>
-              <IndianRupee className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+  
 
       <PremiumPaymentModal
         isOpen={isPaymentModalOpen}

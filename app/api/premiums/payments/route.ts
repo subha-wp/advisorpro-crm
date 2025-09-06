@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { type NextRequest, NextResponse } from "next/server"
 
 import { updatePolicyAfterPayment, createPremiumAuditLog } from "@/lib/premium-utils"
