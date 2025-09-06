@@ -45,12 +45,14 @@ enum TaskPriority {
   URGENT
 }
 
+
 enum TaskStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
   CANCELLED
 }
+
 
 enum TaskType {
   FOLLOW_UP
@@ -59,6 +61,35 @@ enum TaskType {
   DOCUMENTATION
   MEETING
   OTHER
+}
+
+enum ScheduleStatus {
+  PENDING
+  PAID
+  PARTIAL
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMode {
+  CASH
+  CHEQUE
+  ONLINE_TRANSFER
+  UPI
+  DEBIT_CARD
+  CREDIT_CARD
+  NET_BANKING
+  OTHER
+}
+
+enum ReminderType {
+  ADVANCE_30
+  ADVANCE_15
+  ADVANCE_7
+  DUE_DATE
+  OVERDUE_7
+  OVERDUE_15
+  OVERDUE_30
 }
 
 model User {
@@ -404,7 +435,7 @@ model PremiumReminder {
   policyId         String    @map("policy_id")
   scheduleId       String    @map("schedule_id")
   reminderDate     DateTime  @map("reminder_date")
-  reminderType     String    @map("reminder_type") // ADVANCE, DUE, OVERDUE, GRACE_PERIOD
+  reminderType     ReminderType
   daysBeforeDue    Int?      @map("days_before_due")
   channel          Channel
   templateId       String?   @map("template_id")
