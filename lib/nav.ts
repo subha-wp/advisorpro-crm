@@ -1,5 +1,5 @@
 import type React from "react"
-import { LayoutDashboard, Users, Bell, BarChart3, Settings, IndianRupee, Contact, FileText, CheckSquare, Group } from "lucide-react"
+import { LayoutDashboard, Users, Bell, BarChart3, Settings, IndianRupee, Contact, FileText, CheckSquare, Group, Calculator } from "lucide-react"
 
 export type NavItem = {
   href: string
@@ -12,6 +12,7 @@ export const appNav: NavItem[] = [
   { href: "/family", label: "Family", icon: Group },
   { href: "/clients", label: "Clients", icon: Contact },
   { href: "/policies", label: "Policies", icon: FileText },
+  { href: "/premiums", label: "Premiums", icon: Calculator },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/reminders", label: "Reminders", icon: Bell },
   { href: "/reports", label: "Reports", icon: BarChart3 },

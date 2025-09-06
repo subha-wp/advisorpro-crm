@@ -76,6 +76,8 @@ model User {
   refreshTokens RefreshToken[]
   createdTasks    Task[]     @relation("TaskCreator")
   assignedTasks   Task[]     @relation("TaskAssignee")
+  processedPayments PremiumPayment[] @relation("ProcessedPayments")
+  calculatedPremiums PremiumCalculation[] @relation("CalculatedPremiums")
 
   @@map("users")
 }
@@ -101,6 +103,8 @@ model Workspace {
   auditLogs     AuditLog[]
   billingLogs   BillingLog[]
   tasks         Task[]
+  premiumPayments PremiumPayment[]
+  premiumReminders PremiumReminder[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -184,12 +188,32 @@ model Policy {
   maturityDate  DateTime?    @map("maturity_date")
   status        PolicyStatus @default(ACTIVE)
   metadata      Json?        // Store additional policy details like riders, nominee, etc.
+  policyType    String?      @map("policy_type")
+  annualPremium Decimal?     @map("annual_premium")
+  premiumPayingTerm Int?     @map("premium_paying_term")
+  policyTerm    Int?         @map("policy_term")
+  nomineeDetails String?     @map("nominee_details")
+  agentCode     String?      @map("agent_code")
+  branchCode    String?      @map("branch_code")
+  servicingDetails String?   @map("servicing_details")
+  proposalNumber String?     @map("proposal_number")
+  medicalRequired Boolean?   @map("medical_required") @default(false)
+  policyBondNumber String?   @map("policy_bond_number")
+  revivalDate   DateTime?    @map("revival_date")
+  surrenderValue Decimal?    @map("surrender_value")
+  loanAvailable Boolean?     @map("loan_available") @default(false)
+  loanAmount    Decimal?     @map("loan_amount")
   createdAt     DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @updatedAt      @map("updated_at")
 
   client        Client       @relation(fields: [clientId], references: [id])
   reminderLogs  ReminderLog[]
   tasks         Task[]
+  premiumSchedules PremiumSchedule[]
+  premiumPayments PremiumPayment[]
+  premiumReminders PremiumReminder[]
+  policyRiders  PolicyRider[]
+  premiumCalculations PremiumCalculation[]
 
   @@index([clientId])
   @@index([nextDueDate])
@@ -210,6 +234,7 @@ model ReminderTemplate {
 
   workspace    Workspace @relation(fields: [workspaceId], references: [id])
   reminderLogs ReminderLog[]
+  premiumReminders PremiumReminder[]
 
   @@index([workspaceId])
   @@map("reminder_templates")
@@ -320,4 +345,119 @@ model Task {
   @@index([dueDate])
   @@index([priority])
   @@map("tasks")
+}
+
+model PremiumSchedule {
+  id               String    @id @default(uuid())
+  policyId         String    @map("policy_id")
+  installmentNumber Int      @map("installment_number")
+  dueDate          DateTime  @map("due_date")
+  premiumAmount    Decimal   @map("premium_amount")
+  gracePeriodEnd   DateTime? @map("grace_period_end")
+  status           String    @default("PENDING") // PENDING, PAID, OVERDUE, WAIVED
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  policy           Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  payments         PremiumPayment[]
+  reminders        PremiumReminder[]
+
+  @@index([policyId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("premium_schedules")
+}
+
+model PremiumPayment {
+  id               String    @id @default(uuid())
+  workspaceId      String    @map("workspace_id")
+  policyId         String    @map("policy_id")
+  scheduleId       String?   @map("schedule_id")
+  paymentDate      DateTime  @map("payment_date")
+  amountPaid       Decimal   @map("amount_paid")
+  paymentMode      String    @map("payment_mode") // CASH, CHEQUE, ONLINE, UPI, etc.
+  receiptNumber    String?   @map("receipt_number")
+  chequeNumber     String?   @map("cheque_number")
+  bankName         String?   @map("bank_name")
+  transactionId    String?   @map("transaction_id")
+  lateFee          Decimal?  @map("late_fee") @default(0)
+  discount         Decimal?  @map("discount") @default(0)
+  remarks          String?
+  processedByUserId String?  @map("processed_by_user_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  policy           Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  schedule         PremiumSchedule? @relation(fields: [scheduleId], references: [id])
+  processedBy      User?     @relation("ProcessedPayments", fields: [processedByUserId], references: [id])
+
+  @@index([workspaceId])
+  @@index([policyId])
+  @@index([paymentDate])
+  @@map("premium_payments")
+}
+
+model PremiumReminder {
+  id               String    @id @default(uuid())
+  workspaceId      String    @map("workspace_id")
+  policyId         String    @map("policy_id")
+  scheduleId       String    @map("schedule_id")
+  reminderDate     DateTime  @map("reminder_date")
+  reminderType     String    @map("reminder_type") // ADVANCE, DUE, OVERDUE, GRACE_PERIOD
+  daysBeforeDue    Int?      @map("days_before_due")
+  channel          Channel
+  templateId       String?   @map("template_id")
+  status           String    @default("SCHEDULED") // SCHEDULED, SENT, FAILED, CANCELLED
+  sentAt           DateTime? @map("sent_at")
+  errorMessage     String?   @map("error_message")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  policy           Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  schedule         PremiumSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  template         ReminderTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([workspaceId])
+  @@index([reminderDate])
+  @@index([status])
+  @@map("premium_reminders")
+}
+
+model PolicyRider {
+  id               String    @id @default(uuid())
+  policyId         String    @map("policy_id")
+  riderName        String    @map("rider_name")
+  riderType        String?   @map("rider_type")
+  sumAssured       Decimal?  @map("sum_assured")
+  annualPremium    Decimal?  @map("annual_premium")
+  commencementDate DateTime? @map("commencement_date")
+  maturityDate     DateTime? @map("maturity_date")
+  status           String    @default("ACTIVE")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  policy           Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@index([policyId])
+  @@map("policy_riders")
+}
+
+model PremiumCalculation {
+  id               String    @id @default(uuid())
+  policyId         String    @map("policy_id")
+  calculationDate  DateTime  @map("calculation_date")
+  basePremium      Decimal   @map("base_premium")
+  riderPremiums    Decimal?  @map("rider_premiums") @default(0)
+  serviceTax       Decimal?  @map("service_tax") @default(0)
+  totalPremium     Decimal   @map("total_premium")
+  calculationMethod String? @map("calculation_method")
+  calculatedByUserId String? @map("calculated_by_user_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  policy           Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  calculatedBy     User?     @relation("CalculatedPremiums", fields: [calculatedByUserId], references: [id])
+
+  @@index([policyId])
+  @@map("premium_calculations")
 }
