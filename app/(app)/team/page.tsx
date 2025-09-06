@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { UpgradePrompt } from "@/components/upgrade-modal"
 import { useToast } from "@/hooks/use-toast"
+import { LocationDashboard } from "@/components/team/location-dashboard"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -129,7 +131,7 @@ export default function TeamPage() {
         <div>
           <h1 className="text-xl font-semibold text-balance">Team</h1>
           <p className="text-sm text-muted-foreground">
-            Invite and manage staff • {limits?.current || 0}/{limits?.max || 0} users
+            Manage staff and track locations • {limits?.current || 0}/{limits?.max || 0} users
           </p>
         </div>
         {!limits?.canAdd ? (
@@ -139,77 +141,90 @@ export default function TeamPage() {
         )}
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm text-muted-foreground">Team Members</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {members.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
-                        No team members yet
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    members.map((member: any) => (
-                      <TableRow key={member.id}>
-                        <TableCell className="font-medium">{member.user.name}</TableCell>
-                        <TableCell>{member.user.email}</TableCell>
-                        <TableCell>{member.user.phone}</TableCell>
-                        <TableCell>
-                          {member.role === "OWNER" ? (
-                            <Badge variant="default">Owner</Badge>
-                          ) : (
-                            <select
-                              value={member.role}
-                              onChange={(e) => onChangeRole(member.id, e.target.value as any)}
-                              className="border rounded px-2 py-1 text-sm"
-                              disabled={member.role === "OWNER"}
-                            >
-                              <option value="AGENT">Agent</option>
-                              <option value="VIEWER">Viewer</option>
-                            </select>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(member.user.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {member.role !== "OWNER" && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => onRemove(member.id, member.user.name)}
-                            >
-                              Remove
-                            </Button>
-                          )}
-                        </TableCell>
+      <Tabs defaultValue="members" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="members">Team Members</TabsTrigger>
+          <TabsTrigger value="locations">Locations</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="members">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-muted-foreground">Team Members</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading...</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {members.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                            No team members yet
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        members.map((member: any) => (
+                          <TableRow key={member.id}>
+                            <TableCell className="font-medium">{member.user.name}</TableCell>
+                            <TableCell>{member.user.email}</TableCell>
+                            <TableCell>{member.user.phone}</TableCell>
+                            <TableCell>
+                              {member.role === "OWNER" ? (
+                                <Badge variant="default">Owner</Badge>
+                              ) : (
+                                <select
+                                  value={member.role}
+                                  onChange={(e) => onChangeRole(member.id, e.target.value as any)}
+                                  className="border rounded px-2 py-1 text-sm"
+                                  disabled={member.role === "OWNER"}
+                                >
+                                  <option value="AGENT">Agent</option>
+                                  <option value="VIEWER">Viewer</option>
+                                </select>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {new Date(member.user.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {member.role !== "OWNER" && (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => onRemove(member.id, member.user.name)}
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="locations">
+          <LocationDashboard />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

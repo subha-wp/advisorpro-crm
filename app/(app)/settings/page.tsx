@@ -4,6 +4,7 @@ import { ProfileSettings } from "@/components/settings/profile-settings"
 import { SecuritySettings } from "@/components/settings/security-settings"
 import { AuditLogs } from "@/components/settings/audit-logs"
 import { EmailSettings } from "@/components/settings/email-settings"
+import { LocationSettings } from "@/components/settings/location-settings"
 
 export default function SettingsPage() {
   return (
@@ -14,10 +15,11 @@ export default function SettingsPage() {
       </header>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="workspace">Workspace</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
+          <TabsTrigger value="location">Location</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="audit">Audit Logs</TabsTrigger>
         </TabsList>
@@ -32,6 +34,10 @@ export default function SettingsPage() {
         
         <TabsContent value="email">
           <EmailSettings />
+        </TabsContent>
+        
+        <TabsContent value="location">
+          <LocationSettings />
         </TabsContent>
         
         <TabsContent value="security">

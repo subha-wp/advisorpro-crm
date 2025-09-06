@@ -9,11 +9,17 @@ import { attachAuthCookies } from "@/lib/auth/cookies"
 import { createAuditLog } from "@/lib/audit"
 import { authLimiter } from "@/lib/rate-limit"
 import { emailSchema, passwordSchema } from "@/lib/validation"
+import { saveUserLocation, reverseGeocode } from "@/lib/location"
 import crypto from "node:crypto"
 
 const LoginSchema = z.object({
   identifier: z.string().min(3).max(255), // email or phone
   password: passwordSchema,
+  location: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+    accuracy: z.number().optional(),
+  }).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -92,6 +98,33 @@ export async function POST(req: NextRequest) {
     const access = await signAccessToken({ sub: user.id, ws: wsId!, role: role as any })
     const refresh = await signRefreshToken({ sub: user.id, tid: refreshId })
 
+    // Save user location if provided
+    if (parse.data.location) {
+      try {
+        const address = await reverseGeocode(
+          parse.data.location.latitude,
+          parse.data.location.longitude
+        )
+        
+        await saveUserLocation({
+          userId: user.id,
+          workspaceId: wsId!,
+          location: {
+            latitude: parse.data.location.latitude,
+            longitude: parse.data.location.longitude,
+            accuracy: parse.data.location.accuracy,
+            address: address || undefined,
+          },
+          ipAddress: ip,
+          userAgent: req.headers.get("user-agent") || undefined,
+          locationSource: 'login'
+        })
+      } catch (locationError) {
+        console.error("[Location Save Error]", locationError)
+        // Don't fail login if location save fails
+      }
+    }
+
     // Audit log
     await createAuditLog({
       workspaceId: wsId!,
@@ -99,7 +132,15 @@ export async function POST(req: NextRequest) {
       action: "LOGIN",
       entity: "USER",
       entityId: user.id,
-      metadata: { ip, userAgent: req.headers.get("user-agent") }
+      metadata: { 
+        ip, 
+        userAgent: req.headers.get("user-agent"),
+        location: parse.data.location ? {
+          latitude: parse.data.location.latitude,
+          longitude: parse.data.location.longitude,
+          accuracy: parse.data.location.accuracy
+        } : undefined
+      }
     })
 
     const res = NextResponse.json({ ok: true, workspaceId: wsId })
