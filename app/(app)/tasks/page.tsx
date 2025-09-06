@@ -68,9 +68,9 @@ export default function TasksPage() {
       <TaskStatsCards stats={stats} />
 
       {/* Quick Filters */}
-      <Card>
+      <Card className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
         <CardHeader>
-          <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+          <CardTitle className="text-sm text-white flex items-center">
             <Filter className="h-4 w-4" />
             Quick Filters
           </CardTitle>

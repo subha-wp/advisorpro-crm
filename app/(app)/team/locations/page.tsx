@@ -78,7 +78,7 @@ export default function TeamLocationsPage() {
     return "destructive" // More than 5km
   }
 
-  function getDistanceLabel(distance?: number) {
+  function getDistancelabel(distance?: number) {
     if (!distance) return "Unknown"
     if (distance < 1) return `${Math.round(distance * 1000)}m`
     return `${distance.toFixed(1)}km`
@@ -164,7 +164,7 @@ export default function TeamLocationsPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="grid gap-2">
-                <Label>Team Member</Label>
+                <label>Team Member</label>
                 <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                   <SelectTrigger>
                     <SelectValue placeholder="All members" />
@@ -181,7 +181,7 @@ export default function TeamLocationsPage() {
               </div>
 
               <div className="grid gap-2">
-                <Label>Start Date</Label>
+                <label>Start Date</label>
                 <Input
                   type="date"
                   value={startDate}
@@ -190,7 +190,7 @@ export default function TeamLocationsPage() {
               </div>
 
               <div className="grid gap-2">
-                <Label>End Date</Label>
+                <label>End Date</label>
                 <Input
                   type="date"
                   value={endDate}
@@ -199,7 +199,7 @@ export default function TeamLocationsPage() {
               </div>
 
               <div className="grid gap-2">
-                <Label>Source</Label>
+                <label>Source</label>
                 <Select value={locationSource} onValueChange={setLocationSource}>
                   <SelectTrigger>
                     <SelectValue placeholder="All sources" />
@@ -299,7 +299,7 @@ export default function TeamLocationsPage() {
                         <TableCell>
                           {location.distanceFromOffice ? (
                             <Badge variant={getDistanceColor(Number(location.distanceFromOffice)) as any}>
-                              {getDistanceLabel(Number(location.distanceFromOffice))}
+                              {getDistancelabel(Number(location.distanceFromOffice))}
                             </Badge>
                           ) : (
                             <span className="text-muted-foreground text-sm">-</span>
@@ -375,14 +375,14 @@ export default function TeamLocationsPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label className="text-xs text-muted-foreground">Coordinates</Label>
+                <label className="text-xs text-muted-foreground">Coordinates</label>
                 <div className="font-mono text-sm">
                   {Number(officeLocation.latitude).toFixed(6)}, {Number(officeLocation.longitude).toFixed(6)}
                 </div>
               </div>
               {officeLocation.address && (
                 <div className="md:col-span-2">
-                  <Label className="text-xs text-muted-foreground">Address</Label>
+                  <label className="text-xs text-muted-foreground">Address</label>
                   <div className="text-sm">{officeLocation.address}</div>
                 </div>
               )}

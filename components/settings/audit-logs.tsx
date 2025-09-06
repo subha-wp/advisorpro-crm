@@ -16,7 +16,7 @@ export function AuditLogs() {
   const [action, setAction] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const pageSize = 50
+  const pageSize = 7
 
   const params = new URLSearchParams({
     page: String(page),

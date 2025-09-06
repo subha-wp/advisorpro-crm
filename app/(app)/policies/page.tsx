@@ -18,9 +18,9 @@ export default function PoliciesPage() {
         </div>
       </header>
 
-      <Alert>
+      <Alert className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 ">
         <TrendingUp className="h-4 w-4" />
-        <AlertDescription>
+        <AlertDescription className="text-white">
           <strong>Professional Policy Management:</strong> Track premiums,
           calculate due dates automatically, manage riders, and maintain
           comprehensive policy records with integrated client relationships.

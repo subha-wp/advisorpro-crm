@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { LocationTracker, useLocationTracker } from "@/components/location/location-tracker"
+import {  useLocationTracker } from "@/components/location/location-tracker"
 import { MapPin } from "lucide-react"
 
 export default function LoginPage() {

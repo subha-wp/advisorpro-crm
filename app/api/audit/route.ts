@@ -10,14 +10,14 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Rate limiting
-  const rateLimitResult = apiLimiter.check(req, 50, session.sub)
+  const rateLimitResult = apiLimiter.check(req, 10, session.sub)
   if (!rateLimitResult.success) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
   }
 
   const url = new URL(req.url)
   const page = Number(url.searchParams.get("page") ?? "1")
-  const pageSize = Math.min(100, Number(url.searchParams.get("pageSize") ?? "50"))
+  const pageSize = Math.min(100, Number(url.searchParams.get("pageSize") ?? "10"))
   const entity = url.searchParams.get("entity") as any
   const action = url.searchParams.get("action") as any
   const userId = url.searchParams.get("userId") || undefined

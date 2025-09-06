@@ -93,9 +93,9 @@ export function EmailSettings() {
           </AlertDescription>
         </Alert>
       ) : configured ? (
-        <Alert>
+        <Alert className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
           <CheckCircle className="h-4 w-4" />
-          <AlertDescription>
+          <AlertDescription className="text-white">
             Email provider is configured and ready to send emails.
           </AlertDescription>
         </Alert>

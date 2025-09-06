@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getPrisma } from "@/lib/db"
 import { decrypt } from "@/lib/crypto"
 import { Resend } from "resend"

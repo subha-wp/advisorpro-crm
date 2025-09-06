@@ -28,7 +28,8 @@ import {
   LogOut, 
   Settings, 
   User,
-  Building2
+  Building2,
+  Power
 } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -78,34 +79,59 @@ export function DesktopSidebar() {
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "hidden md:flex md:flex-col border-r bg-sidebar min-h-svh transition-all duration-300 ease-in-out",
+          // layout + size + responsive
+          "hidden md:flex md:flex-col relative transition-all duration-400 ease-in-out select-none",
+          // glassmorphism background + border + shadow
+          "bg-white/6 backdrop-blur-md border border-white/8 shadow-[0_10px_30px_rgba(12,15,30,0.35)]",
+          "rounded-tr-2xl rounded-br-2xl overflow-hidden",
+          // width for collapsed / expanded
           collapsed ? "md:w-16" : "md:w-64"
         )}
         aria-label="Sidebar"
       >
+        {/* animated gradient overlay */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 animated-gradient"
+        />
+
+        {/* subtle vignette */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-20 bg-[radial-gradient(ellipse_at_top_left,_rgba(255,255,255,0.02),_transparent_30%)]" />
+
         {/* Header */}
-        <div className={cn(
-          "p-4 border-b flex items-center",
-          collapsed ? "justify-center" : "justify-between"
-        )}>
+        <div
+          className={cn(
+            "p-4 flex items-center transition-all duration-300",
+            collapsed ? "justify-center" : "justify-between"
+          )}
+        >
           {!collapsed && (
-            <div className="flex items-center gap-2">
-              <Building2 className="h-6 w-6 text-primary" />
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg p-2 bg-white/8 border border-white/6 shadow-sm">
+                <Building2 className="h-6 w-6 text-gradient-primary" />
+              </div>
+
               <div>
-                <Link href="/dashboard" className="font-semibold text-foreground hover:text-primary transition-colors">
+                <Link
+                  href="/dashboard"
+                  className="block text-lg font-semibold tracking-tight leading-tight text-foreground/95 hover:text-primary transition-colors"
+                >
                   AdvisorPro
                 </Link>
-                <p className="text-xs text-muted-foreground">Advisor WorkSpace</p>
+                <p className="text-xs text-muted-foreground/90 tracking-wide">
+                  Advisor WorkSpace
+                </p>
               </div>
             </div>
           )}
-          
+
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className="h-8 w-8 shrink-0"
+            className="h-8 w-8 shrink-0 rounded-lg hover:bg-white/8 transition-transform duration-200"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand" : "Collapse"}
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4" />
@@ -116,7 +142,7 @@ export function DesktopSidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-2">
+        <nav className="flex-1 p-3">
           <ul className="space-y-1">
             {appNav.map((item) => {
               const Icon = item.icon
@@ -126,14 +152,23 @@ export function DesktopSidebar() {
                 <Link
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                    active 
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" 
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground",
-                    collapsed && "justify-center"
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    // glass accent hover + subtle scale
+                    active
+                      ? "bg-[linear-gradient(90deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] text-sidebar-accent-foreground shadow-sm transform-gpu"
+                      : "text-sidebar-foreground/85 hover:text-sidebar-foreground hover:scale-[1.01] hover:bg-white/4",
+                    collapsed && "justify-center px-0"
                   )}
                 >
-                  <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  <div
+                    className={cn(
+                      "flex items-center justify-center h-7 w-7 rounded-md",
+                      active ? "bg-gradient-to-br from-indigo-500/20 to-pink-400/20" : "bg-transparent"
+                    )}
+                    aria-hidden
+                  >
+                    <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  </div>
                   {!collapsed && <span className="truncate">{item.label}</span>}
                 </Link>
               )
@@ -159,7 +194,7 @@ export function DesktopSidebar() {
         </nav>
 
         {/* User Profile Section */}
-        <div className="border-t p-3">
+        <div className="border-t border-white/6 p-3">
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -167,16 +202,16 @@ export function DesktopSidebar() {
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
-                      className="w-full h-10 p-0 hover:bg-sidebar-accent"
+                      className="w-full h-10 p-0 hover:bg-white/4 rounded-lg"
                     >
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
+                        <AvatarFallback className="bg-gradient-to-br from-primary/10 to-secondary/8 text-primary font-semibold text-sm">
                           {getUserInitials(user?.name)}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" side="right" className="w-56">
+                  <DropdownMenuContent align="end" side="right" className="w-56 glass-dropdown">
                     <div className="px-2 py-1.5">
                       <p className="text-sm font-medium">{user?.name || "User"}</p>
                       <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
@@ -192,7 +227,7 @@ export function DesktopSidebar() {
                       onClick={handleLogout}
                       className="flex items-center gap-2 text-destructive focus:text-destructive"
                     >
-                      <LogOut className="h-4 w-4" />
+                      <Power className="h-4 w-4" />
                       Sign out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -210,16 +245,16 @@ export function DesktopSidebar() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start h-auto p-3 hover:bg-sidebar-accent group"
+                  className="w-full justify-start h-auto p-3 hover:bg-white/5 rounded-lg group"
                 >
                   <div className="flex items-center gap-3 w-full">
                     <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      <AvatarFallback className="bg-gradient-to-br from-primary/10 to-secondary/8 text-primary font-semibold">
                         {getUserInitials(user?.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 text-left min-w-0">
-                      <p className="text-sm font-medium text-sidebar-foreground truncate">
+                      <p className="text-sm font-semibold text-sidebar-foreground truncate tracking-tight">
                         {user?.name || "Loading..."}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
@@ -235,12 +270,12 @@ export function DesktopSidebar() {
                       </div>
                     </div>
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <LogOut className="h-4 w-4 text-muted-foreground" />
+                      <Power className="h-6 w-6 text-red-500" />
                     </div>
                   </div>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" side="top" className="w-56 mb-2">
+              <DropdownMenuContent align="end" side="top" className="w-56 mb-2 glass-dropdown">
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-medium">{user?.name || "User"}</p>
                   <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
@@ -273,6 +308,50 @@ export function DesktopSidebar() {
             </DropdownMenu>
           )}
         </div>
+
+        {/* Local styles for gradient animation and glass dropdown styling */}
+        <style jsx>{`
+          /* animated gradient (very subtle) */
+          @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+          }
+
+          .animated-gradient {
+            /* multi-stop gradient blended softly */
+            background: linear-gradient(
+              90deg,
+              rgba(99,102,241,0.14) 0%,
+              rgba(236,72,153,0.12) 30%,
+              rgba(245,158,11,0.10) 60%,
+              rgba(99,102,241,0.08) 100%
+            );
+            background-size: 200% 200%;
+            animation: gradientShift 10s ease-in-out infinite;
+            opacity: 0.9;
+            filter: blur(20px);
+            mix-blend-mode: overlay;
+          }
+
+          /* Dropdown content glass style */
+          :global(.glass-dropdown) {
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(8px) saturate(120%);
+            border: 1px solid rgba(255,255,255,0.06);
+            box-shadow: 0 6px 20px rgba(8,10,25,0.5);
+            border-radius: 0.5rem;
+            padding: 0.25rem;
+          }
+
+          /* Gradient icon color helper (used for logo) */
+          :global(.text-gradient-primary) {
+            background: linear-gradient(90deg, #6366F1, #EC4899);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+          }
+        `}</style>
       </aside>
     </TooltipProvider>
   )

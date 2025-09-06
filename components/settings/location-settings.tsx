@@ -120,9 +120,9 @@ export function LocationSettings() {
           </AlertDescription>
         </Alert>
       ) : isConfigured ? (
-        <Alert>
+        <Alert className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
           <CheckCircle className="h-4 w-4" />
-          <AlertDescription>
+          <AlertDescription className="text-white">
             Office location is configured. Employee location tracking is {form.trackingEnabled ? "enabled" : "disabled"}.
           </AlertDescription>
         </Alert>
