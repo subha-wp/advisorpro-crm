@@ -13,10 +13,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-svh md:flex">
+    <div className="min-h-svh">
       <SessionProvider>
         <DesktopSidebar />
-        <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">{children}</main>
+        <main className="md:ml-64 p-4 md:p-6 pb-20 md:pb-6 transition-all duration-400">{children}</main>
         <MobileBottomNav />
         <Toaster />
       </SessionProvider>

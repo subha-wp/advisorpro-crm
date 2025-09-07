@@ -86,8 +86,8 @@ export function DesktopSidebar() {
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          // layout + size + responsive
-          "hidden md:flex md:flex-col relative transition-all duration-400 ease-in-out select-none",
+          // layout + size + responsive + sticky
+          "hidden md:flex md:flex-col fixed left-0 top-0 h-screen z-30 transition-all duration-400 ease-in-out select-none",
           // glassmorphism background + border + shadow
           "bg-white/6 backdrop-blur-md border border-white/8 shadow-[0_10px_30px_rgba(12,15,30,0.35)]",
           "rounded-tr-2xl rounded-br-2xl overflow-hidden",
@@ -105,25 +105,35 @@ export function DesktopSidebar() {
         {/* subtle vignette */}
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-20 bg-[radial-gradient(ellipse_at_top_left,_rgba(255,255,255,0.02),_transparent_30%)]" />
 
-        {/* Header */}
+        {/* Header - Fixed */}
         <div
           className={cn(
-            "p-4 flex items-center transition-all duration-300",
+            "p-4 flex items-center transition-all duration-300 border-b border-white/6 bg-white/2",
             collapsed ? "justify-center" : "justify-between"
           )}
         >
           {!collapsed && (
             <div className="flex items-center gap-3">
-              <div className="rounded-lg p-2 bg-white/8 border border-white/6 shadow-sm">
-                <Building2 className="h-6 w-6 text-gradient-primary" />
-              </div>
+              {workspace?.logoUrl ? (
+                <div className="rounded-lg p-1 bg-white/8 border border-white/6 shadow-sm">
+                  <img 
+                    src={workspace.logoUrl} 
+                    alt="Workspace Logo" 
+                    className="h-8 w-8 object-contain rounded"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-lg p-2 bg-white/8 border border-white/6 shadow-sm">
+                  <Building2 className="h-6 w-6 text-gradient-primary" />
+                </div>
+              )}
 
               <div>
                 <Link
                   href="/dashboard"
                   className="block text-lg font-semibold tracking-tight leading-tight text-foreground/95 hover:text-primary transition-colors"
                 >
-                  AdvisorPro
+                  {workspace?.name || "AdvisorPro"}
                 </Link>
                 <p className="text-xs text-muted-foreground/90 tracking-wide">
                   Advisor WorkSpace
@@ -148,8 +158,8 @@ export function DesktopSidebar() {
           </Button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-3">
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 p-3 overflow-y-auto">
           <ul className="space-y-1">
             {appNav.map((item) => {
               const Icon = item.icon
@@ -200,7 +210,7 @@ export function DesktopSidebar() {
           </ul>
         </nav>
 
-        {/* User Profile Section */}
+        {/* User Profile Section - Fixed */}
         <div className="border-t border-white/6 p-3">
           {/* Location Status */}
           {!collapsed && (
