@@ -42,10 +42,15 @@ export function DesktopSidebar() {
   const { data: profileData } = useSWR("/api/user/profile", fetcher)
   const { data: workspaceData } = useSWR("/api/workspace", fetcher)
   const { data: planData } = useSWR("/api/plan", fetcher)
+  const { data: teamData } = useSWR("/api/team", fetcher)
   
   const user = profileData?.item
   const workspace = workspaceData?.item
   const plan = planData?.plan
+  
+  // Get current user's role from team data
+  const currentUserMembership = teamData?.items?.find((member: any) => member.user.id === user?.id)
+  const userRole = currentUserMembership?.role || "VIEWER"
 
   async function handleLogout() {
     try {
@@ -259,10 +264,10 @@ export function DesktopSidebar() {
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge 
-                          variant={getRoleColor(workspace?.owner?.id === user?.id ? "OWNER" : "MEMBER") as any}
+                          variant={getRoleColor(userRole) as any}
                           className="text-xs px-1.5 py-0"
                         >
-                          {workspace?.owner?.id === user?.id ? "Owner" : "Member"}
+                          {userRole}
                         </Badge>
                         <Badge variant="outline" className="text-xs px-1.5 py-0">
                           {plan || "FREE"}

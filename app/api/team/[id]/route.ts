@@ -74,6 +74,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const { id } = await params
   const session = await requireRole(ROLES.OWNER) // Only owners can remove members
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -87,7 +88,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   // Get membership to check if it exists and get user info
   const membership = await prisma.membership.findFirst({
-    where: { id: params.id, workspaceId: session.ws },
+    where: { id: id, workspaceId: session.ws },
     include: { user: { select: { name: true, email: true } } }
   })
 
@@ -106,7 +107,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   }
 
   await prisma.membership.delete({
-    where: { id: params.id }
+    where: { id: id }
   })
 
   // Audit log
@@ -115,7 +116,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     userId: session.sub,
     action: "REMOVE_USER",
     entity: "MEMBERSHIP",
-    entityId: params.id,
+    entityId: id,
     before: { 
       userId: membership.userId, 
       role: membership.role,

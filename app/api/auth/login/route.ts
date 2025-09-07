@@ -57,7 +57,10 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.findFirst({
       where: identifier.includes("@") ? { email: identifier } : { phone: identifier },
       include: {
-        memberships: { take: 1, orderBy: { workspaceId: "asc" } }, // pick first workspace
+        memberships: { 
+          include: { workspace: true },
+          orderBy: { workspaceId: "asc" } 
+        },
         workspaces: true,
       },
     })
@@ -66,22 +69,46 @@ export async function POST(req: NextRequest) {
     const ok = await verifyPassword(password, user.passwordHash)
     if (!ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
 
-    const membership = user.memberships[0]
-    // If user has no memberships yet, create one using their owned workspace if exists
-    let wsId = membership?.workspaceId
-    let role = membership?.role ?? "OWNER"
-    if (!wsId) {
-      const owned = user.workspaces[0]
-      if (owned) {
-        wsId = owned.id
+    // Find the correct membership and workspace
+    let wsId: string
+    let role: string
+
+    // First, check if user has any memberships
+    if (user.memberships.length > 0) {
+      const membership = user.memberships[0] // Use first membership
+      wsId = membership.workspaceId
+      role = membership.role
+    } else {
+      // If no memberships, check if user owns any workspace
+      const ownedWorkspace = user.workspaces.find(ws => ws.ownerId === user.id)
+      if (ownedWorkspace) {
+        // Create missing membership for owned workspace
+        await prisma.membership.create({
+          data: { 
+            userId: user.id, 
+            workspaceId: ownedWorkspace.id, 
+            role: "OWNER" 
+          }
+        })
+        wsId = ownedWorkspace.id
         role = "OWNER"
       } else {
-        // create a personal workspace on first login if somehow missing
-        const ws = await prisma.workspace.create({
-          data: { name: `${user.name ?? "Workspace"}`, ownerId: user.id, plan: "FREE" },
+        // Create a new workspace for the user (this should rarely happen)
+        const newWorkspace = await prisma.workspace.create({
+          data: { 
+            name: `${user.name ?? "My"} Workspace`, 
+            ownerId: user.id, 
+            plan: "FREE" 
+          },
         })
-        await prisma.membership.create({ data: { userId: user.id, workspaceId: ws.id, role: "OWNER" } })
-        wsId = ws.id
+        await prisma.membership.create({
+          data: { 
+            userId: user.id, 
+            workspaceId: newWorkspace.id, 
+            role: "OWNER" 
+          }
+        })
+        wsId = newWorkspace.id
         role = "OWNER"
       }
     }
@@ -95,7 +122,7 @@ export async function POST(req: NextRequest) {
       data: { id: refreshId, userId: user.id, tokenHash: refreshHash, expiresAt },
     })
 
-    const access = await signAccessToken({ sub: user.id, ws: wsId!, role: role as any })
+    const access = await signAccessToken({ sub: user.id, ws: wsId, role: role as any })
     const refresh = await signRefreshToken({ sub: user.id, tid: refreshId })
 
     // Save user location if provided
@@ -108,7 +135,7 @@ export async function POST(req: NextRequest) {
         
         await saveUserLocation({
           userId: user.id,
-          workspaceId: wsId!,
+          workspaceId: wsId,
           location: {
             latitude: parse.data.location.latitude,
             longitude: parse.data.location.longitude,
@@ -127,7 +154,7 @@ export async function POST(req: NextRequest) {
 
     // Audit log
     await createAuditLog({
-      workspaceId: wsId!,
+      workspaceId: wsId,
       userId: user.id,
       action: "LOGIN",
       entity: "USER",
@@ -135,6 +162,8 @@ export async function POST(req: NextRequest) {
       metadata: { 
         ip, 
         userAgent: req.headers.get("user-agent"),
+        role: role,
+        workspaceId: wsId,
         location: parse.data.location ? {
           latitude: parse.data.location.latitude,
           longitude: parse.data.location.longitude,
@@ -143,7 +172,7 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    const res = NextResponse.json({ ok: true, workspaceId: wsId })
+    const res = NextResponse.json({ ok: true, workspaceId: wsId, role })
     attachAuthCookies(res, access, `${refreshId}:${refreshPlain}`)
     return res
   } catch (err) {

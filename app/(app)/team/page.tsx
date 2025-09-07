@@ -188,7 +188,7 @@ export default function TeamPage() {
                                 <select
                                   value={member.role}
                                   onChange={(e) => onChangeRole(member.id, e.target.value as any)}
-                                  className="border rounded px-2 py-1 text-sm"
+                                  className="border rounded px-2 py-1 text-sm bg-background"
                                   disabled={member.role === "OWNER"}
                                 >
                                   <option value="AGENT">Agent</option>

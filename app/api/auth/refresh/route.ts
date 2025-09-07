@@ -56,7 +56,10 @@ async function rotateTokens(req: NextRequest): Promise<
   const user = await prisma.user.findUnique({
     where: { id: dbTok.userId },
     include: {
-      memberships: { take: 1, orderBy: { workspaceId: "asc" } },
+      memberships: { 
+        include: { workspace: true },
+        orderBy: { workspaceId: "asc" } 
+      },
     },
   })
 
@@ -66,7 +69,56 @@ async function rotateTokens(req: NextRequest): Promise<
 
   const primary = user.memberships?.[0]
   if (!primary) {
-    return { error: loginRedirect(req) }
+    // Check if user owns any workspace
+    const ownedWorkspace = await prisma.workspace.findFirst({
+      where: { ownerId: user.id }
+    })
+    
+    if (ownedWorkspace) {
+      // Create missing membership
+      await prisma.membership.create({
+        data: {
+          userId: user.id,
+          workspaceId: ownedWorkspace.id,
+          role: "OWNER"
+        }
+      })
+      
+      // Issue new access token
+      const accessToken = await signAccessToken({
+        sub: user.id,
+        ws: ownedWorkspace.id,
+        role: "OWNER",
+      })
+      
+      // Create new refresh token
+      const refreshPlain = crypto.randomBytes(32).toString("hex")
+      const refreshId = crypto.randomUUID()
+      const refreshHash = await hashPassword(refreshPlain)
+      const refreshExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)
+      
+      await prisma.$transaction([
+        prisma.refreshToken.update({
+          where: { id: oldId },
+          data: { revokedAt: new Date() },
+        }),
+        prisma.refreshToken.create({
+          data: {
+            id: refreshId,
+            userId: user.id,
+            tokenHash: refreshHash,
+            expiresAt: refreshExpiresAt,
+          },
+        }),
+      ])
+      
+      return {
+        accessToken,
+        refreshCombined: `${refreshId}:${refreshPlain}`,
+      }
+    } else {
+      return { error: loginRedirect(req) }
+    }
   }
 
   // Issue new access token with 15-minute expiry

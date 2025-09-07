@@ -121,7 +121,13 @@ export async function POST(req: NextRequest) {
       action: "INVITE_USER",
       entity: "MEMBERSHIP",
       entityId: membership.id,
-      after: { userId: existingUser.id, role: data.role }
+      after: { 
+        userId: existingUser.id, 
+        role: data.role,
+        userEmail: existingUser.email,
+        userName: existingUser.name,
+        existingUser: true
+      }
     })
 
     return NextResponse.json({ 
