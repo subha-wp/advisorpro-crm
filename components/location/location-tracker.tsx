@@ -24,6 +24,11 @@ export function LocationTracker({ onLocationUpdate, autoRequest = false, childre
   const requestLocation = async () => {
     if (!navigator.geolocation) {
       setError("Geolocation is not supported by this browser")
+      toast({
+        title: "Location Error",
+        description: "Your browser doesn't support location services. Please use a modern browser.",
+        variant: "destructive"
+      })
       return
     }
 
@@ -37,8 +42,8 @@ export function LocationTracker({ onLocationUpdate, autoRequest = false, childre
           reject,
           {
             enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 300000 // 5 minutes
+            timeout: 15000, // Increased timeout for mandatory location
+            maximumAge: 60000 // 1 minute for mandatory location
           }
         )
       })
@@ -57,19 +62,19 @@ export function LocationTracker({ onLocationUpdate, autoRequest = false, childre
       
       switch (error.code) {
         case error.PERMISSION_DENIED:
-          errorMessage = "Location access denied by user"
+          errorMessage = "Location access denied. Please enable location services and refresh the page."
           break
         case error.POSITION_UNAVAILABLE:
-          errorMessage = "Location information unavailable"
+          errorMessage = "Location information unavailable. Please check your device settings."
           break
         case error.TIMEOUT:
-          errorMessage = "Location request timed out"
+          errorMessage = "Location request timed out. Please try again."
           break
       }
       
       setError(errorMessage)
       toast({
-        title: "Location Error",
+        title: "Location Required",
         description: errorMessage,
         variant: "destructive"
       })
@@ -117,8 +122,8 @@ export function useLocationTracker() {
           reject,
           {
             enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 300000
+            timeout: 15000,
+            maximumAge: 60000
           }
         )
       })
@@ -137,13 +142,13 @@ export function useLocationTracker() {
       
       switch (error.code) {
         case error.PERMISSION_DENIED:
-          errorMessage = "Location access denied"
+          errorMessage = "Location access denied. Please enable location services."
           break
         case error.POSITION_UNAVAILABLE:
-          errorMessage = "Location unavailable"
+          errorMessage = "Location unavailable. Please check your device settings."
           break
         case error.TIMEOUT:
-          errorMessage = "Location request timed out"
+          errorMessage = "Location request timed out. Please try again."
           break
       }
       

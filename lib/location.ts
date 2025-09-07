@@ -57,7 +57,8 @@ export async function saveUserLocation({
   location,
   ipAddress,
   userAgent,
-  locationSource = 'login'
+  locationSource = 'login',
+  isRequired = true
 }: {
   userId: string
   workspaceId: string
@@ -65,6 +66,7 @@ export async function saveUserLocation({
   ipAddress?: string
   userAgent?: string
   locationSource?: string
+  isRequired?: boolean
 }) {
   const prisma = await getPrisma()
 
@@ -74,9 +76,15 @@ export async function saveUserLocation({
     select: { 
       officeLatitude: true, 
       officeLongitude: true,
-      locationTrackingEnabled: true 
+      locationTrackingEnabled: true,
+      name: true
     }
   })
+
+  // For mandatory location tracking, always save regardless of workspace settings
+  if (!isRequired && !workspace?.locationTrackingEnabled) {
+    throw new Error("Location tracking is not enabled for this workspace")
+  }
 
   let distanceFromOffice: number | undefined
 

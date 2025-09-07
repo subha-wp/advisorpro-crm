@@ -1,13 +1,16 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { useLocationTracker } from "@/components/location/location-tracker"
+import { MapPin, AlertTriangle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -18,16 +21,47 @@ export default function SignupPage() {
   const [workspaceName, setWorkspaceName] = useState("My Workspace")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [locationStatus, setLocationStatus] = useState<"requesting" | "granted" | "denied" | "error">("requesting")
+  const { location, requestLocation } = useLocationTracker()
+
+  // Request location immediately when component mounts
+  useEffect(() => {
+    const getLocation = async () => {
+      const locationData = await requestLocation()
+      if (locationData) {
+        setLocationStatus("granted")
+      } else {
+        setLocationStatus("denied")
+      }
+    }
+    getLocation()
+  }, [requestLocation])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    
+    // Block signup if location is not available
+    if (!location) {
+      setError("Location access is required to create an account. Please enable location and try again.")
+      return
+    }
+    
     setLoading(true)
     try {
+      const signupData = { 
+        name, 
+        email, 
+        phone, 
+        password, 
+        workspaceName,
+        location // Always include location (mandatory)
+      }
+      
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, password, workspaceName }),
+        body: JSON.stringify(signupData),
       })
       if (res.ok) {
         router.push("/dashboard")
@@ -39,6 +73,16 @@ export default function SignupPage() {
       setError("Network error. Please try again.")
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function retryLocation() {
+    setLocationStatus("requesting")
+    const locationData = await requestLocation()
+    if (locationData) {
+      setLocationStatus("granted")
+    } else {
+      setLocationStatus("denied")
     }
   }
 
@@ -131,6 +175,55 @@ export default function SignupPage() {
                 />
               </div>
 
+              {/* Mandatory Location Status */}
+              {locationStatus === "requesting" && (
+                <Alert>
+                  <MapPin className="h-4 w-4 animate-pulse" />
+                  <AlertDescription>
+                    <div className="flex items-center justify-between">
+                      <span>Requesting location access...</span>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {locationStatus === "granted" && location && (
+                <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                    <MapPin className="h-4 w-4" />
+                    <span className="text-sm font-medium">Location verified ✓</span>
+                  </div>
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    Accuracy: ±{Math.round(location.accuracy || 0)}m
+                  </p>
+                </div>
+              )}
+
+              {locationStatus === "denied" && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-medium">Location access required</p>
+                      <p className="text-sm">
+                        Location tracking is mandatory for security and attendance. Please enable location access to continue.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={retryLocation}
+                        className="mt-2"
+                      >
+                        <MapPin className="h-4 w-4 mr-2" />
+                        Retry Location Access
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {error && (
                 <div
                   role="alert"
@@ -140,8 +233,13 @@ export default function SignupPage() {
                 </div>
               )}
 
-              <Button type="submit" className="w-full h-11 font-medium" disabled={loading} aria-busy={loading}>
-                {loading ? "Creating..." : "Create account"}
+              <Button 
+                type="submit" 
+                className="w-full h-11 font-medium" 
+                disabled={loading || !location} 
+                aria-busy={loading}
+              >
+                {loading ? "Creating..." : locationStatus === "requesting" ? "Waiting for location..." : "Create account"}
               </Button>
             </form>
 

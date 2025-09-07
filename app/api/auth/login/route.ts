@@ -15,11 +15,11 @@ import crypto from "node:crypto"
 const LoginSchema = z.object({
   identifier: z.string().min(3).max(255), // email or phone
   password: passwordSchema,
-  location: z.object({
+  location: z.object({ // Now required, not optional
     latitude: z.number(),
     longitude: z.number(),
     accuracy: z.number().optional(),
-  }).optional(),
+  }),
 })
 
 export async function POST(req: NextRequest) {
@@ -125,31 +125,29 @@ export async function POST(req: NextRequest) {
     const access = await signAccessToken({ sub: user.id, ws: wsId, role: role as any })
     const refresh = await signRefreshToken({ sub: user.id, tid: refreshId })
 
-    // Save user location if provided
-    if (parse.data.location) {
-      try {
-        const address = await reverseGeocode(
-          parse.data.location.latitude,
-          parse.data.location.longitude
-        )
-        
-        await saveUserLocation({
-          userId: user.id,
-          workspaceId: wsId,
-          location: {
-            latitude: parse.data.location.latitude,
-            longitude: parse.data.location.longitude,
-            accuracy: parse.data.location.accuracy,
-            address: address || undefined,
-          },
-          ipAddress: ip,
-          userAgent: req.headers.get("user-agent") || undefined,
-          locationSource: 'login'
-        })
-      } catch (locationError) {
-        console.error("[Location Save Error]", locationError)
-        // Don't fail login if location save fails
-      }
+    // Save user location (mandatory during login)
+    try {
+      const address = await reverseGeocode(
+        parse.data.location.latitude,
+        parse.data.location.longitude
+      )
+      
+      await saveUserLocation({
+        userId: user.id,
+        workspaceId: wsId,
+        location: {
+          latitude: parse.data.location.latitude,
+          longitude: parse.data.location.longitude,
+          accuracy: parse.data.location.accuracy,
+          address: address || undefined,
+        },
+        ipAddress: ip,
+        userAgent: req.headers.get("user-agent") || undefined,
+        locationSource: 'login'
+      })
+    } catch (locationError) {
+      console.error("[Location Save Error]", locationError)
+      // Don't fail login if location save fails, but log it
     }
 
     // Audit log
@@ -164,11 +162,11 @@ export async function POST(req: NextRequest) {
         userAgent: req.headers.get("user-agent"),
         role: role,
         workspaceId: wsId,
-        location: parse.data.location ? {
+        location: {
           latitude: parse.data.location.latitude,
           longitude: parse.data.location.longitude,
           accuracy: parse.data.location.accuracy
-        } : undefined
+        }
       }
     })
 

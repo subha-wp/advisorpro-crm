@@ -1,36 +1,56 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import {  useLocationTracker } from "@/components/location/location-tracker"
-import { MapPin } from "lucide-react"
+import { useLocationTracker } from "@/components/location/location-tracker"
+import { MapPin, AlertTriangle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [locationEnabled, setLocationEnabled] = useState(false)
+  const [locationStatus, setLocationStatus] = useState<"requesting" | "granted" | "denied" | "error">("requesting")
   const router = useRouter()
   const { location, requestLocation } = useLocationTracker()
+
+  // Request location immediately when component mounts
+  useEffect(() => {
+    const getLocation = async () => {
+      const locationData = await requestLocation()
+      if (locationData) {
+        setLocationStatus("granted")
+      } else {
+        setLocationStatus("denied")
+      }
+    }
+    getLocation()
+  }, [requestLocation])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    
+    // Block login if location is not available
+    if (!location) {
+      setError("Location access is required to sign in. Please enable location and try again.")
+      return
+    }
+    
     setLoading(true)
     
     try {
-      const loginData: any = { identifier, password }
-      
-      // Include location if available and enabled
-      if (locationEnabled && location) {
-        loginData.location = location
+      const loginData = { 
+        identifier, 
+        password,
+        location // Always include location (mandatory)
       }
       
       const res = await fetch("/api/auth/login", {
@@ -52,16 +72,16 @@ export default function LoginPage() {
     }
   }
 
-  async function handleLocationToggle() {
-    if (!locationEnabled) {
-      const locationData = await requestLocation()
-      if (locationData) {
-        setLocationEnabled(true)
-      }
+  async function retryLocation() {
+    setLocationStatus("requesting")
+    const locationData = await requestLocation()
+    if (locationData) {
+      setLocationStatus("granted")
     } else {
-      setLocationEnabled(false)
+      setLocationStatus("denied")
     }
   }
+
   return (
     <div className="min-h-dvh flex items-center justify-center px-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <div className="w-full max-w-md space-y-6">
@@ -128,32 +148,24 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Location Sharing Option */}
-              <div className="flex items-center justify-between p-3 border rounded-md">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Share location</p>
-                    <p className="text-xs text-muted-foreground">
-                      Help your team track attendance
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant={locationEnabled ? "default" : "outline"}
-                  size="sm"
-                  onClick={handleLocationToggle}
-                >
-                  {locationEnabled ? "Enabled" : "Enable"}
-                </Button>
-              </div>
+              {/* Mandatory Location Status */}
+              {locationStatus === "requesting" && (
+                <Alert>
+                  <MapPin className="h-4 w-4 animate-pulse" />
+                  <AlertDescription>
+                    <div className="flex items-center justify-between">
+                      <span>Requesting location access...</span>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
-              {location && locationEnabled && (
+              {locationStatus === "granted" && location && (
                 <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
                   <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
                     <MapPin className="h-4 w-4" />
-                    <span className="text-sm font-medium">Location captured</span>
+                    <span className="text-sm font-medium">Location verified ✓</span>
                   </div>
                   <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                     Accuracy: ±{Math.round(location.accuracy || 0)}m
@@ -161,13 +173,37 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {locationStatus === "denied" && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-medium">Location access required</p>
+                      <p className="text-sm">
+                        Location tracking is mandatory for security and attendance. Please enable location access and try again.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={retryLocation}
+                        className="mt-2"
+                      >
+                        <MapPin className="h-4 w-4 mr-2" />
+                        Retry Location Access
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <Button 
                 type="submit" 
                 className="w-full h-11 font-medium" 
-                disabled={loading}
+                disabled={loading || !location}
                 aria-busy={loading}
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? "Signing in..." : locationStatus === "requesting" ? "Waiting for location..." : "Sign in"}
               </Button>
             </form>
 

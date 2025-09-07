@@ -17,6 +17,11 @@ const SignupSchema = z.object({
   phone: phoneSchema,
   password: passwordSchema,
   workspaceName: workspaceNameSchema.default("My Workspace"),
+  location: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+    accuracy: z.number().optional(),
+  }),
 })
 
 export async function POST(req: NextRequest) {
@@ -54,6 +59,7 @@ export async function POST(req: NextRequest) {
     const phone = sanitizePhone(rawData.phone)
     const password = rawData.password
     const workspaceName = sanitizeString(rawData.workspaceName)
+    const location = parse.data.location
     
     const prisma = await getPrisma()
 
@@ -90,6 +96,28 @@ export async function POST(req: NextRequest) {
     const access = await signAccessToken({ sub: user.id, ws: workspace.id, role: "OWNER" })
     const refresh = await signRefreshToken({ sub: user.id, tid: refreshId })
 
+    // Save user location (mandatory during signup)
+    try {
+      const address = await reverseGeocode(location.latitude, location.longitude)
+      
+      await saveUserLocation({
+        userId: user.id,
+        workspaceId: workspace.id,
+        location: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          accuracy: location.accuracy,
+          address: address || undefined,
+        },
+        ipAddress: ip,
+        userAgent: req.headers.get("user-agent") || undefined,
+        locationSource: 'signup'
+      })
+    } catch (locationError) {
+      console.error("[Location Save Error during signup]", locationError)
+      // Don't fail signup if location save fails, but log it
+    }
+
     // Audit log
     await createAuditLog({
       workspaceId: workspace.id,
@@ -98,7 +126,15 @@ export async function POST(req: NextRequest) {
       entity: "USER",
       entityId: user.id,
       after: { name, email, phone, workspaceName },
-      metadata: { ip, userAgent: req.headers.get("user-agent") }
+      metadata: { 
+        ip, 
+        userAgent: req.headers.get("user-agent"),
+        location: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          accuracy: location.accuracy
+        }
+      }
     })
 
     const res = NextResponse.json({ ok: true, workspaceId: workspace.id })

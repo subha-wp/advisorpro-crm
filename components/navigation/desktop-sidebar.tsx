@@ -29,8 +29,10 @@ import {
   Settings, 
   User,
   Building2,
-  Power
+  Power,
+  MapPin
 } from "lucide-react"
+import { LocationStatusIndicator } from "@/components/location/location-status-indicator"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -200,6 +202,13 @@ export function DesktopSidebar() {
 
         {/* User Profile Section */}
         <div className="border-t border-white/6 p-3">
+          {/* Location Status */}
+          {!collapsed && (
+            <div className="mb-3 px-3">
+              <LocationStatusIndicator showDetails className="w-full" />
+            </div>
+          )}
+          
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
