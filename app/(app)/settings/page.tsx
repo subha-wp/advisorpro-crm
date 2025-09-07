@@ -1,5 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { WorkspaceSettings } from "@/components/settings/workspace-settings"
+import { WorkspaceDetails } from "@/components/settings/workspace-details"
 import { ProfileSettings } from "@/components/settings/profile-settings"
 import { SecuritySettings } from "@/components/settings/security-settings"
 import { AuditLogs } from "@/components/settings/audit-logs"
@@ -15,9 +16,10 @@ export default function SettingsPage() {
       </header>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="workspace">Workspace</TabsTrigger>
+          <TabsTrigger value="details">Office Details</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="location">Location</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
@@ -30,6 +32,10 @@ export default function SettingsPage() {
         
         <TabsContent value="workspace">
           <WorkspaceSettings />
+        </TabsContent>
+        
+        <TabsContent value="details">
+          <WorkspaceDetails />
         </TabsContent>
         
         <TabsContent value="email">

@@ -110,6 +110,7 @@ model User {
   processedPayments PremiumPayment[] @relation("ProcessedPayments")
   calculatedPremiums PremiumCalculation[] @relation("CalculatedPremiums")
   userLocations   UserLocation[]
+  uploadedAssets  WorkspaceAsset[] @relation("UploadedAssets")
 
   @@map("users")
 }
@@ -130,6 +131,17 @@ model Workspace {
   officeLongitude Decimal?     @map("office_longitude") @db.Decimal(11, 8)
   officeAddress   String?      @map("office_address")
   locationTrackingEnabled Boolean @default(false) @map("location_tracking_enabled")
+  officeEmail     String?      @map("office_email")
+  officePhone     String?      @map("office_phone")
+  officeAddressFull String?    @map("office_address_full")
+  logoUrl         String?      @map("logo_url")
+  websiteUrl      String?      @map("website_url")
+  businessRegistration String? @map("business_registration")
+  gstNumber       String?      @map("gst_number")
+  panNumber       String?      @map("pan_number")
+  cloudinaryCloudNameEnc String? @map("cloudinary_cloud_name_enc")
+  cloudinaryApiKeyEnc String?  @map("cloudinary_api_key_enc")
+  cloudinaryApiSecretEnc String? @map("cloudinary_api_secret_enc")
 
   memberships   Membership[]
   clients       Client[]
@@ -142,6 +154,7 @@ model Workspace {
   premiumPayments PremiumPayment[]
   premiumReminders PremiumReminder[]
   userLocations UserLocation[]
+  workspaceAssets WorkspaceAsset[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -521,4 +534,25 @@ model UserLocation {
   @@index([createdAt])
   @@index([locationSource])
   @@map("user_locations")
+}
+
+model WorkspaceAsset {
+  id               String    @id @default(uuid())
+  workspaceId      String    @map("workspace_id")
+  assetType        String    @map("asset_type") // 'logo', 'letterhead', 'signature', 'certificate', 'other'
+  fileName         String    @map("file_name")
+  fileUrl          String    @map("file_url")
+  fileSize         Int?      @map("file_size")
+  mimeType         String?   @map("mime_type")
+  cloudinaryPublicId String? @map("cloudinary_public_id")
+  uploadedByUserId String?   @map("uploaded_by_user_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  uploadedByUser   User?     @relation("UploadedAssets", fields: [uploadedByUserId], references: [id])
+
+  @@index([workspaceId])
+  @@index([assetType])
+  @@map("workspace_assets")
 }
