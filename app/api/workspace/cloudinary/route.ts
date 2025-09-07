@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { NextRequest } from "next/server"
+import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { getPrisma } from "@/lib/db"
 import { requireRole } from "@/lib/session"
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Rate limiting
-  const rateLimitResult = apiLimiter.check(req, 50, session.sub)
+  const rateLimitResult = apiLimiter.check(req, 200, session.sub) // Increased limit for settings
   if (!rateLimitResult.success) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
   }
@@ -42,9 +42,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Return current Cloudinary settings (without sensitive data)
-    const isConfigured = !!(workspace.cloudinaryCloudNameEnc && workspace.cloudinaryApiKeyEnc && workspace.cloudinaryApiSecretEnc)
+    const isConfigured = !!(
+      workspace.cloudinaryCloudNameEnc &&
+      workspace.cloudinaryApiKeyEnc &&
+      workspace.cloudinaryApiSecretEnc
+    )
     let cloudName = ""
-    
+
     if (isConfigured && workspace.cloudinaryCloudNameEnc) {
       cloudName = decrypt(workspace.cloudinaryCloudNameEnc)
     }
@@ -55,10 +59,13 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error("[Cloudinary Settings GET Error]", error)
-    return NextResponse.json({ 
-      error: "Failed to load Cloudinary settings",
-      details: process.env.NODE_ENV === "development" ? (error as Error).message : undefined
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to load Cloudinary settings",
+        details: process.env.NODE_ENV === "development" ? (error as Error).message : undefined,
+      },
+      { status: 500 },
+    )
   }
 }
 
@@ -67,7 +74,7 @@ export async function PUT(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Rate limiting
-  const rateLimitResult = apiLimiter.check(req, 5, session.sub) // Limited attempts for security
+  const rateLimitResult = apiLimiter.check(req, 20, session.sub) // Increased for setup attempts
   if (!rateLimitResult.success) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
   }
@@ -76,10 +83,13 @@ export async function PUT(req: NextRequest) {
     const body = await req.json().catch(() => ({}))
     const parsed = UpdateCloudinarySchema.safeParse(body)
     if (!parsed.success) {
-      return NextResponse.json({ 
-        error: "Invalid input", 
-        details: parsed.error.issues.map(i => i.message)
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: "Invalid input",
+          details: parsed.error.issues.map((i) => i.message),
+        },
+        { status: 400 },
+      )
     }
 
     const { cloudName, apiKey, apiSecret } = parsed.data
@@ -87,22 +97,31 @@ export async function PUT(req: NextRequest) {
 
     // Test Cloudinary connection before saving
     try {
-      const testUrl = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image`
+      const testUrl = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?max_results=1`
       const testResponse = await fetch(testUrl, {
         headers: {
-          'Authorization': `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString('base64')}`
-        }
+          Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}`,
+          "Content-Type": "application/json",
+        },
       })
-      
+
       if (!testResponse.ok) {
-        return NextResponse.json({ 
-          error: "Invalid Cloudinary credentials. Please check your cloud name, API key, and API secret." 
-        }, { status: 400 })
+        const errorData = await testResponse.json().catch(() => ({}))
+        return NextResponse.json(
+          {
+            error: `Invalid Cloudinary credentials: ${errorData.error?.message || "Please check your cloud name, API key, and API secret."}`,
+          },
+          { status: 400 },
+        )
       }
     } catch (testError) {
-      return NextResponse.json({ 
-        error: "Failed to verify Cloudinary credentials. Please check your settings." 
-      }, { status: 400 })
+      console.error("[Cloudinary Test Error]", testError)
+      return NextResponse.json(
+        {
+          error: "Failed to connect to Cloudinary. Please check your internet connection and credentials.",
+        },
+        { status: 400 },
+      )
     }
 
     // Encrypt credentials
@@ -118,9 +137,9 @@ export async function PUT(req: NextRequest) {
     await prisma.workspace.update({
       where: { id: session.ws },
       data: {
-        cloudinaryCloudNameEnc,
-        cloudinaryApiKeyEnc,
-        cloudinaryApiSecretEnc,
+        cloudinaryCloudNameEnc: cloudNameEnc,
+        cloudinaryApiKeyEnc: apiKeyEnc,
+        cloudinaryApiSecretEnc: apiSecretEnc,
       },
     })
 
@@ -131,21 +150,24 @@ export async function PUT(req: NextRequest) {
       action: "UPDATE",
       entity: "WORKSPACE",
       entityId: session.ws,
-      after: { 
+      after: {
         cloudinaryConfigured: true,
         cloudName: cloudName,
-      }
+      },
     })
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       ok: true,
-      message: "Cloudinary settings saved successfully"
+      message: "Cloudinary settings saved successfully",
     })
   } catch (error) {
     console.error("[Cloudinary Settings PUT Error]", error)
-    return NextResponse.json({ 
-      error: "Failed to save Cloudinary settings",
-      details: process.env.NODE_ENV === "development" ? (error as Error).message : undefined
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to save Cloudinary settings",
+        details: process.env.NODE_ENV === "development" ? (error as Error).message : undefined,
+      },
+      { status: 500 },
+    )
   }
 }

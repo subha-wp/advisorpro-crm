@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Rate limiting
-  const rateLimitResult = apiLimiter.check(req, 100, session.sub)
+  const rateLimitResult = apiLimiter.check(req, 200, session.sub) // Increased for asset browsing
   if (!rateLimitResult.success) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
   }
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Rate limiting
-  const rateLimitResult = apiLimiter.check(req, 20, session.sub)
+  const rateLimitResult = apiLimiter.check(req, 100, session.sub) // Increased for asset uploads
   if (!rateLimitResult.success) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
   }

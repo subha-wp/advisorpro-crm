@@ -273,7 +273,7 @@ export function WorkspaceDetails() {
   return (
     <div className="space-y-6">
       {/* Cloudinary Configuration */}
-      <Card>
+      <Card data-cloudinary-config>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Image className="h-5 w-5" />
@@ -294,17 +294,35 @@ export function WorkspaceDetails() {
         </CardHeader>
         <CardContent>
           {cloudinaryConfigured ? (
-            <Alert>
+            <Alert className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
               <CheckCircle className="h-4 w-4" />
-              <AlertDescription className="flex items-center justify-between">
+              <AlertDescription className="flex items-center justify-between text-white">
                 <span>
                   Cloudinary is configured for cloud: <strong>{cloudinaryData?.cloudName}</strong>
                 </span>
-                <Badge variant="default">Ready for uploads</Badge>
+                <Badge variant="outline" className="bg-white/20 text-white border-white/30">
+                  Ready for uploads
+                </Badge>
               </AlertDescription>
             </Alert>
           ) : (
             <form onSubmit={onSaveCloudinary} className="space-y-4">
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p className="font-medium">Quick Setup Guide:</p>
+                    <ol className="text-sm space-y-1 ml-4 list-decimal">
+                      <li>Sign up at <a href="https://cloudinary.com" target="_blank" className="text-primary hover:underline">cloudinary.com</a></li>
+                      <li>Go to Dashboard → Settings → API Keys</li>
+                      <li>Copy Cloud Name from your dashboard URL</li>
+                      <li>Copy API Key and API Secret</li>
+                      <li>Paste them below and click Configure</li>
+                    </ol>
+                  </div>
+                </AlertDescription>
+              </Alert>
+              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="cloudName">Cloud Name *</Label>
@@ -313,8 +331,12 @@ export function WorkspaceDetails() {
                     value={cloudinaryForm.cloudName}
                     onChange={(e) => setCloudinaryForm(f => ({ ...f, cloudName: e.target.value }))}
                     placeholder="your-cloud-name"
+                    className="font-mono"
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    From your dashboard URL: cloudinary.com/console/c/<strong>YOUR_CLOUD_NAME</strong>
+                  </p>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="apiKey">API Key *</Label>
@@ -324,8 +346,12 @@ export function WorkspaceDetails() {
                     value={cloudinaryForm.apiKey}
                     onChange={(e) => setCloudinaryForm(f => ({ ...f, apiKey: e.target.value }))}
                     placeholder="123456789012345"
+                    className="font-mono"
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    15-digit number from API Keys section
+                  </p>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="apiSecret">API Secret *</Label>
@@ -335,12 +361,16 @@ export function WorkspaceDetails() {
                     value={cloudinaryForm.apiSecret}
                     onChange={(e) => setCloudinaryForm(f => ({ ...f, apiSecret: e.target.value }))}
                     placeholder="abcdefghijklmnopqrstuvwxyz"
+                    className="font-mono"
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Secret key from API Keys section (keep confidential)
+                  </p>
                 </div>
               </div>
               
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving} className="w-full">
                 {saving ? "Configuring..." : "Configure Cloudinary"}
               </Button>
             </form>
@@ -488,7 +518,20 @@ export function WorkspaceDetails() {
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Configure Cloudinary settings above to enable file uploads
+                <div className="flex items-center justify-between">
+                  <span>Configure Cloudinary settings above to enable file uploads</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      // Scroll to Cloudinary section
+                      const cloudinarySection = document.querySelector('[data-cloudinary-config]')
+                      cloudinarySection?.scrollIntoView({ behavior: 'smooth' })
+                    }}
+                  >
+                    Configure Now
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           ) : (

@@ -35,14 +35,30 @@ export function CloudinarySetup({ isConfigured, cloudName, onConfigured }: Cloud
       return
     }
 
+    // Basic validation
+    if (form.cloudName.includes(' ') || form.cloudName.includes('.')) {
+      toast({
+        title: "Error",
+        description: "Cloud name should not contain spaces or dots",
+        variant: "destructive"
+      })
+      return
+    }
+
     setSaving(true)
     
     try {
       const res = await fetch("/api/workspace/cloudinary", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          cloudName: form.cloudName.trim(),
+          apiKey: form.apiKey.trim(),
+          apiSecret: form.apiSecret.trim(),
+        }),
       })
+      
+      const data = await res.json()
       
       if (res.ok) {
         toast({ 
@@ -52,7 +68,6 @@ export function CloudinarySetup({ isConfigured, cloudName, onConfigured }: Cloud
         setForm(prev => ({ ...prev, apiKey: "", apiSecret: "" })) // Clear sensitive fields
         onConfigured()
       } else {
-        const data = await res.json()
         toast({ 
           title: "Error", 
           description: data.error || "Failed to configure Cloudinary",
@@ -60,6 +75,7 @@ export function CloudinarySetup({ isConfigured, cloudName, onConfigured }: Cloud
         })
       }
     } catch (error) {
+      console.error("[Cloudinary Setup Error]", error)
       toast({ 
         title: "Error", 
         description: "Network error. Please try again.",
@@ -124,6 +140,9 @@ export function CloudinarySetup({ isConfigured, cloudName, onConfigured }: Cloud
               <p className="text-xs text-muted-foreground">
                 Found in your Cloudinary dashboard URL: cloudinary.com/console/c/YOUR_CLOUD_NAME
               </p>
+              <p className="text-xs text-amber-600">
+                Note: Cloud name should not contain spaces or special characters
+              </p>
             </div>
 
             <div className="grid gap-2">
@@ -139,6 +158,9 @@ export function CloudinarySetup({ isConfigured, cloudName, onConfigured }: Cloud
                 placeholder="123456789012345"
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                Found in Settings → API Keys in your Cloudinary dashboard
+              </p>
             </div>
 
             <div className="grid gap-2">
@@ -154,6 +176,9 @@ export function CloudinarySetup({ isConfigured, cloudName, onConfigured }: Cloud
                 required
               />
               <p className="text-xs text-muted-foreground">
+                Keep this secret! Found in Settings → API Keys
+              </p>
+              <p className="text-xs text-muted-foreground">
                 Your credentials are encrypted and stored securely
               </p>
             </div>
@@ -167,8 +192,9 @@ export function CloudinarySetup({ isConfigured, cloudName, onConfigured }: Cloud
                 <ol className="text-sm space-y-1 ml-4 list-decimal">
                   <li>Create a free account at cloudinary.com</li>
                   <li>Go to your Dashboard → Settings → API Keys</li>
-                  <li>Copy your Cloud Name, API Key, and API Secret</li>
-                  <li>Create an unsigned upload preset in Settings → Upload</li>
+                  <li>Copy your Cloud Name (from dashboard URL)</li>
+                  <li>Copy your API Key and API Secret</li>
+                  <li>Paste them in the form above</li>
                 </ol>
               </div>
             </AlertDescription>

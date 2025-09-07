@@ -68,6 +68,7 @@ export function AssetUploader({
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = accept
+    input.multiple = false
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
@@ -82,27 +83,45 @@ export function AssetUploader({
         return
       }
 
+      // Validate file type more strictly
+      const allowedTypes = {
+        logo: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+        letterhead: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'],
+        signature: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+        certificate: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'],
+        other: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'],
+      }
+      
+      const allowed = allowedTypes[assetType as keyof typeof allowedTypes] || []
+      if (!allowed.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: `Please select a valid file type for ${assetType}`,
+          variant: "destructive"
+        })
+        return
+      }
+
       setUploading(true)
       try {
         const formData = new FormData()
         formData.append('file', file)
         formData.append('assetType', assetType)
-        formData.append('folder', 'workspace-assets')
 
         const res = await fetch("/api/workspace/upload", {
           method: "POST",
           body: formData,
         })
 
+        const data = await res.json()
+        
         if (res.ok) {
-          const data = await res.json()
           toast({ 
             title: "File uploaded", 
             description: `${file.name} has been uploaded successfully` 
           })
           onAssetUploaded()
         } else {
-          const data = await res.json()
           toast({ 
             title: "Upload failed", 
             description: data.error || "Failed to upload file",
@@ -110,6 +129,7 @@ export function AssetUploader({
           })
         }
       } catch (error) {
+        console.error("[Asset Upload Error]", error)
         toast({ 
           title: "Upload failed", 
           description: "Network error. Please try again.",
@@ -130,6 +150,8 @@ export function AssetUploader({
         method: "DELETE",
       })
 
+      const data = await res.json()
+      
       if (res.ok) {
         toast({ 
           title: "Asset deleted", 
@@ -137,7 +159,6 @@ export function AssetUploader({
         })
         onAssetDeleted()
       } else {
-        const data = await res.json()
         toast({ 
           title: "Error", 
           description: data.error || "Failed to delete asset",
@@ -145,6 +166,7 @@ export function AssetUploader({
         })
       }
     } catch (error) {
+      console.error("[Asset Delete Error]", error)
       toast({ 
         title: "Error", 
         description: "Network error. Please try again.",
@@ -183,6 +205,7 @@ export function AssetUploader({
               onClick={() => handleFileUpload(type.value, type.accept)}
               disabled={uploading}
               className="h-20 flex-col gap-2 relative"
+              title={`Upload ${type.label}`}
             >
               <Icon className="h-6 w-6" />
               <span className="text-sm">{type.label}</span>
@@ -201,11 +224,18 @@ export function AssetUploader({
           <Upload className="h-4 w-4 animate-pulse" />
           <AlertDescription>
             <div className="flex items-center justify-between">
-              <span>Uploading file to Cloudinary...</span>
+              <span>Uploading file... Please wait.</span>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
             </div>
           </AlertDescription>
         </Alert>
+      )}
+      
+      {!uploading && (
+        <div className="text-xs text-muted-foreground text-center">
+          <p>Supported formats: JPEG, PNG, GIF, WebP (images), PDF (documents)</p>
+          <p>Maximum file size: 10MB</p>
+        </div>
       )}
 
       {/* Current Assets by Type */}
