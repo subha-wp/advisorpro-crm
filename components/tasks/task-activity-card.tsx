@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
   Clock, 
   User, 
@@ -205,6 +205,11 @@ export function TaskActivityCard({
             {task.assignedTo ? (
               <div className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
+                  <AvatarImage 
+                    src={task.assignedTo.avatarUrl || undefined} 
+                    alt={`${task.assignedTo.name}'s avatar`}
+                    className="object-cover"
+                  />
                   <AvatarFallback className="text-xs">
                     {getUserInitials(task.assignedTo.name)}
                   </AvatarFallback>

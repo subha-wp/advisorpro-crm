@@ -98,6 +98,8 @@ model User {
   email        String   @unique
   phone        String   @unique
   passwordHash String   @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  avatarCloudinaryId String? @map("avatar_cloudinary_id")
   createdAt    DateTime @default(now()) @map("created_at")
 
   memberships  Membership[]

@@ -3,7 +3,7 @@
 import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { 
   MapPin, 
@@ -116,6 +116,11 @@ export function TeamActivityWidget() {
                 return (
                   <div key={member.id} className="flex items-center gap-3 p-3 bg-white/50 rounded-lg">
                     <Avatar className="h-8 w-8">
+                     <AvatarImage 
+                       src={member.user.avatarUrl || undefined} 
+                       alt={`${member.user.name}'s avatar`}
+                       className="object-cover"
+                     />
                       <AvatarFallback className="bg-cyan-500 text-white text-xs">
                         {getUserInitials(member.user.name)}
                       </AvatarFallback>

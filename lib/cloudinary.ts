@@ -12,6 +12,9 @@ export const CLOUDINARY_TRANSFORMATIONS = {
   letterhead: "c_fit,h_800,w_600,f_auto,q_auto",
   signature: "c_fit,h_150,w_400,f_auto,q_auto",
   certificate: "c_fit,h_600,w_800,f_auto,q_auto",
+  avatar: "c_fill,g_face,h_200,w_200,f_auto,q_auto",
+  avatar_small: "c_fill,g_face,h_64,w_64,f_auto,q_auto",
+  avatar_large: "c_fill,g_face,h_400,w_400,f_auto,q_auto",
   other: "c_fit,h_600,w_800,f_auto,q_auto",
 } as const
 
@@ -80,4 +83,41 @@ export function generateCloudinarySignature(params: Record<string, string | numb
     .digest("hex")
 
   return signature
+}
+
+/**
+ * Delete asset from Cloudinary
+ */
+export async function deleteFromCloudinary(workspaceId: string, publicId: string): Promise<boolean> {
+  try {
+    const config = await getWorkspaceCloudinary(workspaceId)
+    if (!config) {
+      throw new Error("Cloudinary not configured")
+    }
+
+    const timestamp = Math.round(Date.now() / 1000)
+    const signatureParams = {
+      public_id: publicId,
+      timestamp: timestamp,
+    }
+    
+    const signature = generateCloudinarySignature(signatureParams, config.apiSecret)
+    
+    const deleteFormData = new FormData()
+    deleteFormData.append("public_id", publicId)
+    deleteFormData.append("api_key", config.apiKey)
+    deleteFormData.append("timestamp", timestamp.toString())
+    deleteFormData.append("signature", signature)
+
+    const deleteUrl = `https://api.cloudinary.com/v1_1/${config.cloudName}/image/destroy`
+    const response = await fetch(deleteUrl, {
+      method: "POST",
+      body: deleteFormData,
+    })
+
+    return response.ok
+  } catch (error) {
+    console.error("[Cloudinary Delete Error]", error)
+    return false
+  }
 }

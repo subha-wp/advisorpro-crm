@@ -63,8 +63,8 @@ export async function GET(req: NextRequest) {
     prisma.task.findMany({
       where,
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
-        assignedTo: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
         client: { select: { id: true, name: true } },
         policy: { select: { id: true, policyNumber: true, insurer: true } },
       },
@@ -161,8 +161,8 @@ export async function POST(req: NextRequest) {
       dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
     },
     include: {
-      createdBy: { select: { id: true, name: true, email: true } },
-      assignedTo: { select: { id: true, name: true, email: true } },
+      createdBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
       client: { select: { id: true, name: true } },
       policy: { select: { id: true, policyNumber: true, insurer: true } },
     }

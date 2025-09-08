@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data: { role: parsed.data.role },
     include: {
       user: {
-        select: { id: true, name: true, email: true, phone: true, createdAt: true }
+        select: { id: true, name: true, email: true, phone: true, avatarUrl: true, createdAt: true }
       }
     }
   })

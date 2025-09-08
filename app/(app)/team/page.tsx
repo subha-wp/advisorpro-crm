@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UpgradePrompt } from "@/components/upgrade-modal"
 import { useToast } from "@/hooks/use-toast"
 import { LocationDashboard } from "@/components/team/location-dashboard"
@@ -178,8 +179,24 @@ export default function TeamPage() {
                       ) : (
                         members.map((member: any) => (
                           <TableRow key={member.id}>
-                            <TableCell className="font-medium">{member.user.name}</TableCell>
-                            <TableCell>{member.user.email}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage 
+                                    src={member.user.avatarUrl || undefined} 
+                                    alt={`${member.user.name}'s avatar`}
+                                    className="object-cover"
+                                  />
+                                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                    {member.user.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="font-medium">{member.user.name}</div>
+                                  <div className="text-xs text-muted-foreground">{member.user.email}</div>
+                                </div>
+                              </div>
+                            </TableCell>
                             <TableCell>{member.user.phone}</TableCell>
                             <TableCell>
                               {member.role === "OWNER" ? (

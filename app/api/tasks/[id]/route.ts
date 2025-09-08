@@ -35,8 +35,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       workspaceId: session.ws 
     },
     include: {
-      createdBy: { select: { id: true, name: true, email: true } },
-      assignedTo: { select: { id: true, name: true, email: true } },
+      createdBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
       client: { select: { id: true, name: true, mobile: true, email: true } },
       policy: { select: { id: true, policyNumber: true, insurer: true, planName: true } },
     }
@@ -151,8 +151,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     where: { id: id },
     data: updateData,
     include: {
-      createdBy: { select: { id: true, name: true, email: true } },
-      assignedTo: { select: { id: true, name: true, email: true } },
+      createdBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
       client: { select: { id: true, name: true } },
       policy: { select: { id: true, policyNumber: true, insurer: true } },
     }

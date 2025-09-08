@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const prisma = await getPrisma()
   const user = await prisma.user.findUnique({
     where: { id: session.sub },
-    select: { id: true, name: true, email: true, phone: true, createdAt: true }
+    select: { id: true, name: true, email: true, phone: true, avatarUrl: true, createdAt: true }
   })
 
   if (!user) {
@@ -96,7 +96,7 @@ export async function PATCH(req: NextRequest) {
   const updatedUser = await prisma.user.update({
     where: { id: session.sub },
     data: updateData,
-    select: { id: true, name: true, email: true, phone: true, createdAt: true }
+    select: { id: true, name: true, email: true, phone: true, avatarUrl: true, createdAt: true }
   })
 
   // Audit log

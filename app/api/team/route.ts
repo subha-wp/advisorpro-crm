@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     where: { workspaceId: session.ws },
     include: {
       user: {
-        select: { id: true, name: true, email: true, phone: true, createdAt: true }
+        select: { id: true, name: true, email: true, phone: true, avatarUrl: true, createdAt: true }
       }
     },
     orderBy: { user: { createdAt: "asc" } }
@@ -184,7 +184,8 @@ export async function POST(req: NextRequest) {
         id: user.id, 
         name: user.name, 
         email: user.email, 
-        phone: user.phone 
+        phone: user.phone,
+        avatarUrl: user.avatarUrl
       } 
     },
     tempPassword // Remove this in production - send via email instead

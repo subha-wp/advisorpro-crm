@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
@@ -274,6 +274,11 @@ export default function TeamLocationsPage() {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
+                              <AvatarImage 
+                                src={location.user.avatarUrl || undefined} 
+                                alt={`${location.user.name}'s avatar`}
+                                className="object-cover"
+                              />
                               <AvatarFallback className="bg-primary/10 text-primary text-xs">
                                 {getUserInitials(location.user.name)}
                               </AvatarFallback>

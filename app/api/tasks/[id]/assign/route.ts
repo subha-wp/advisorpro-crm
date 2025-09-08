@@ -64,8 +64,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       assignedToUserId: parsed.data.assignedToUserId,
     },
     include: {
-      createdBy: { select: { id: true, name: true, email: true } },
-      assignedTo: { select: { id: true, name: true, email: true } },
+      createdBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
       client: { select: { id: true, name: true } },
       policy: { select: { id: true, policyNumber: true, insurer: true } },
     }

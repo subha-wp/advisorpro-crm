@@ -3,7 +3,7 @@
 import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { LocationMap } from "@/components/location/location-map"
 import { 
@@ -185,6 +185,11 @@ export function LocationDashboard() {
                 <div key={location.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-4">
                     <Avatar className="h-10 w-10">
+                      <AvatarImage 
+                        src={location.user.avatarUrl || undefined} 
+                        alt={`${location.user.name}'s avatar`}
+                        className="object-cover"
+                      />
                       <AvatarFallback className="bg-primary/10 text-primary">
                         {getUserInitials(location.user.name)}
                       </AvatarFallback>

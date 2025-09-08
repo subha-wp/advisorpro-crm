@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts"
@@ -585,6 +585,11 @@ export default function DashboardPage() {
                     return (
                       <div key={member.id} className="flex items-center gap-3 p-3 bg-white/50 rounded-lg">
                         <Avatar className="h-10 w-10">
+                          <AvatarImage 
+                            src={member.user.avatarUrl || undefined} 
+                            alt={`${member.user.name}'s avatar`}
+                            className="object-cover"
+                          />
                           <AvatarFallback className="bg-cyan-500 text-white text-sm">
                             {getUserInitials(member.user.name)}
                           </AvatarFallback>
@@ -648,6 +653,11 @@ export default function DashboardPage() {
                   recentClients.map((client: any) => (
                     <div key={client.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                       <Avatar className="h-8 w-8">
+                        <AvatarImage 
+                          src={client.avatarUrl || undefined} 
+                          alt={`${client.name}'s avatar`}
+                          className="object-cover"
+                        />
                         <AvatarFallback className="bg-primary/10 text-primary text-xs">
                           {getUserInitials(client.name)}
                         </AvatarFallback>

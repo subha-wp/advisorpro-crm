@@ -7,15 +7,7 @@ import useSWR from "swr"
 import { appNav } from "@/lib/nav"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu"
+import { AvatarMenu } from "@/components/ui/avatar-menu"
 import { 
   Tooltip, 
   TooltipContent, 
@@ -23,14 +15,9 @@ import {
   TooltipTrigger 
 } from "@/components/ui/tooltip"
 import { 
-  ChevronLeft, 
-  ChevronRight, 
-  LogOut, 
-  Settings, 
-  User,
   Building2,
-  Power,
-  MapPin
+  ChevronLeft, 
+  ChevronRight
 } from "lucide-react"
 import { LocationStatusIndicator } from "@/components/location/location-status-indicator"
 
@@ -73,25 +60,6 @@ export function DesktopSidebar() {
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
-    }
-  }
-
-  function getUserInitials(name?: string) {
-    if (!name) return "U"
-    return name
-      .split(" ")
-      .map(n => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
-  }
-
-  function getRoleColor(role?: string) {
-    switch (role) {
-      case "OWNER": return "default"
-      case "AGENT": return "secondary"
-      case "VIEWER": return "outline"
-      default: return "outline"
     }
   }
 
@@ -235,114 +203,31 @@ export function DesktopSidebar() {
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="w-full h-10 p-0 hover:bg-white/4 rounded-lg"
-                    >
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-gradient-to-br from-primary/10 to-secondary/8 text-primary font-semibold text-sm">
-                          {getUserInitials(user?.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" side="right" className="w-56 glass-dropdown">
-                    <div className="px-2 py-1.5">
-                      <p className="text-sm font-medium">{user?.name || "User"}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                    </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/settings" className="flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={handleLogout}
-                      className="flex items-center gap-2 text-destructive focus:text-destructive"
-                    >
-                      <Power className="h-4 w-4" />
-                      Sign out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div>
+                  <AvatarMenu
+                    user={user}
+                    workspace={workspace}
+                    userRole={userRole}
+                    onLogout={handleLogout}
+                    collapsed={true}
+                  />
+                </div>
               </TooltipTrigger>
               <TooltipContent side="right">
                 <div className="text-center">
                   <p className="font-medium">{user?.name || "User"}</p>
-                  <p className="text-xs opacity-70">{workspace?.owner?.id === user?.id ? "Owner" : "Member"}</p>
+                  <p className="text-xs opacity-70">{userRole}</p>
                 </div>
               </TooltipContent>
             </Tooltip>
           ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start h-auto p-3 hover:bg-white/5 rounded-lg group"
-                >
-                  <div className="flex items-center gap-3 w-full">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-gradient-to-br from-primary/10 to-secondary/8 text-primary font-semibold">
-                        {getUserInitials(user?.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 text-left min-w-0">
-                      <p className="text-sm font-semibold text-sidebar-foreground truncate tracking-tight">
-                        {user?.name || "Loading..."}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge 
-                          variant={getRoleColor(userRole) as any}
-                          className="text-xs px-1.5 py-0"
-                        >
-                          {userRole}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs px-1.5 py-0">
-                          {plan || "FREE"}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Power className="h-6 w-6 text-red-500" />
-                    </div>
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" side="top" className="w-56 mb-2 glass-dropdown">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{user?.name || "User"}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {workspace?.name || "Workspace"}
-                  </p>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Profile & Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/billing" className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    Workspace & Billing
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AvatarMenu
+              user={user}
+              workspace={{ name: workspace?.name, plan: plan }}
+              userRole={userRole}
+              onLogout={handleLogout}
+              collapsed={false}
+            />
           )}
         </div>
 
