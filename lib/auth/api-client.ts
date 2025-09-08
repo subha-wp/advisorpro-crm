@@ -1,14 +1,44 @@
 "use client"
 
+// Enhanced API client with automatic token refresh and performance optimizations
 // Enhanced API client with automatic token refresh
 class ApiClient {
   private refreshPromise: Promise<boolean> | null = null
+  private requestCache = new Map<string, { data: any, timestamp: number }>()
+  private readonly CACHE_TTL = 30000 // 30 seconds cache for GET requests
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
+    // Check cache for GET requests
+    if (options.method === 'GET' || !options.method) {
+      const cached = this.requestCache.get(url)
+      if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+        return new Response(JSON.stringify(cached.data), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    }
+
     const response = await fetch(url, {
       ...options,
-      credentials: 'include'
+      credentials: 'include',
+      // Add performance headers
+      headers: {
+        ...options.headers,
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
     })
+
+    // Cache successful GET responses
+    if (response.ok && (options.method === 'GET' || !options.method)) {
+      try {
+        const data = await response.clone().json()
+        this.requestCache.set(url, { data, timestamp: Date.now() })
+      } catch (e) {
+        // Ignore cache errors
+      }
+    }
 
     // Check if token refresh is needed
     const refreshNeeded = response.headers.get('x-token-refresh-needed') === 'true'
@@ -18,6 +48,8 @@ class ApiClient {
       const refreshed = await this.refreshToken()
       
       if (refreshed) {
+        // Clear cache on token refresh
+        this.requestCache.clear()
         // Retry the original request
         return fetch(url, {
           ...options,
@@ -31,6 +63,10 @@ class ApiClient {
     }
 
     return response
+  }
+
+  clearCache() {
+    this.requestCache.clear()
   }
 
   private async refreshToken(): Promise<boolean> {
@@ -50,7 +86,10 @@ class ApiClient {
     try {
       const response = await fetch('/api/auth/refresh', {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
       })
 
       return response.ok

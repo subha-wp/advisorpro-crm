@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -9,6 +10,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts"
+import { DashboardLoader } from "@/components/dashboard/dashboard-loader"
+import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import {
   TrendingUp,
@@ -50,6 +53,7 @@ const statusChartConfig = {
 } satisfies ChartConfig
 
 export default function DashboardPage() {
+  // Use SWR with optimized settings for faster loading
   const { data: statsData } = useSWR("/api/workspace/stats", fetcher)
   const { data: planData } = useSWR("/api/plan", fetcher)
   const { data: taskStatsData } = useSWR("/api/tasks/stats", fetcher)
@@ -60,6 +64,18 @@ export default function DashboardPage() {
   const { data: auditData } = useSWR("/api/audit?pageSize=10", fetcher)
   const { data: locationsData } = useSWR("/api/locations?type=current", fetcher)
 
+  // Show loading state for critical data
+  const isLoadingCritical = !statsData || !planData || !taskStatsData
+  
+  if (isLoadingCritical) {
+    return (
+      <Suspense fallback={<DashboardLoader />}>
+        <DashboardLoader />
+      </Suspense>
+    )
+  }
+
+  // Data processing
   const stats = statsData?.stats
   const plan = planData?.plan
   const taskStats = taskStatsData?.stats
@@ -171,6 +187,20 @@ export default function DashboardPage() {
     }
   }
 
+  // Component for loading states of individual sections
+  function SectionLoader({ title, className = "" }: { title: string, className?: string }) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-32 w-full" />
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <section className="space-y-8">
       {/* Header with Gradient */}
@@ -180,7 +210,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-2">Welcome back! 👋</h1>
-              <p className="text-blue-100 text-lg">Here's what's happening with your insurance business today</p>
+              <p className="text-blue-100 text-lg">Your workspace is ready - here's today's overview</p>
             </div>
             <div className="text-right">
               <div className="text-sm text-blue-100">Current Plan</div>
@@ -288,7 +318,10 @@ export default function DashboardPage() {
       {/* Charts Section */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Policy Distribution by Insurer */}
-        <Card className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50">
+        {!policiesData ? (
+          <SectionLoader title="Policy Distribution" className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50" />
+        ) : (
+          <Card className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -332,9 +365,13 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Premium Collection Trend */}
-        <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/50 dark:to-emerald-800/50">
+        {!premiumsData ? (
+          <SectionLoader title="Premium Trends" className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/50 dark:to-emerald-800/50" />
+        ) : (
+          <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/50 dark:to-emerald-800/50">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -379,6 +416,7 @@ export default function DashboardPage() {
             </ChartContainer>
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* Main Content Grid */}

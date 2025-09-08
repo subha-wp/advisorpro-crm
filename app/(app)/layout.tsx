@@ -1,8 +1,10 @@
 import type { ReactNode } from "react"
+import { Suspense } from "react"
 import { DesktopSidebar } from "@/components/navigation/desktop-sidebar"
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { SessionProvider } from "@/components/session/session-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { DashboardLoader } from "@/components/dashboard/dashboard-loader"
 import { getServerSession } from "@/lib/session"
 import { redirect } from "next/navigation"
 
@@ -16,7 +18,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <div className="min-h-svh">
       <SessionProvider>
         <DesktopSidebar />
-        <main className="md:ml-64 p-4 md:p-6 pb-20 md:pb-6 transition-all duration-400">{children}</main>
+        <main className="md:ml-64 p-4 md:p-6 pb-20 md:pb-6 transition-all duration-400">
+          <Suspense fallback={<DashboardLoader />}>
+            {children}
+          </Suspense>
+        </main>
         <MobileBottomNav />
         <Toaster />
       </SessionProvider>

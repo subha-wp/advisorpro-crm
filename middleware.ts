@@ -58,11 +58,18 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Add user info to headers for API routes
+    // Add user info to headers for API routes with performance optimization
     const response = NextResponse.next()
     response.headers.set("x-user-id", payload.sub)
     response.headers.set("x-workspace-id", payload.ws)
     response.headers.set("x-user-role", payload.role)
+    
+    // Add cache control headers for better performance
+    if (pathname.startsWith("/api/")) {
+      response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate")
+    } else {
+      response.headers.set("Cache-Control", "private, max-age=0")
+    }
     
     return response
   } catch (error) {

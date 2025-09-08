@@ -137,7 +137,21 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    const res = NextResponse.json({ ok: true, workspaceId: workspace.id })
+    // Return user data for immediate UI updates
+    const res = NextResponse.json({ 
+      ok: true, 
+      workspaceId: workspace.id,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      },
+      workspace: {
+        id: workspace.id,
+        name: workspace.name,
+        plan: workspace.plan
+      }
+    })
     attachAuthCookies(res, access, `${refreshId}:${refreshPlain}`)
     return res
   } catch (err) {

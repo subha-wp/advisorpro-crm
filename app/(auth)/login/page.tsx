@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -9,14 +9,17 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useLocationTracker } from "@/components/location/location-tracker"
-import { MapPin, AlertTriangle } from "lucide-react"
+import { MapPin, AlertTriangle, CheckCircle, ArrowRight } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Progress } from "@/components/ui/progress"
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loginStep, setLoginStep] = useState<"idle" | "authenticating" | "redirecting" | "success">("idle")
+  const [progress, setProgress] = useState(0)
   const [locationStatus, setLocationStatus] = useState<"requesting" | "granted" | "denied" | "error">("requesting")
   const router = useRouter()
   const { location, requestLocation } = useLocationTracker()
@@ -34,6 +37,37 @@ export default function LoginPage() {
     getLocation()
   }, [requestLocation])
 
+  // Simulate progress for better UX
+  useEffect(() => {
+    if (loginStep === "authenticating") {
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 70) return prev // Stop at 70% until actual response
+          return prev + Math.random() * 15
+        })
+      }, 200)
+      return () => clearInterval(interval)
+    } else if (loginStep === "redirecting") {
+      setProgress(85)
+      const timeout = setTimeout(() => setProgress(100), 500)
+      return () => clearTimeout(timeout)
+    } else if (loginStep === "success") {
+      setProgress(100)
+    }
+  }, [loginStep])
+
+  const handleSuccessfulLogin = useCallback(() => {
+    setLoginStep("redirecting")
+    setProgress(85)
+    
+    // Optimistic navigation with immediate feedback
+    setTimeout(() => {
+      setLoginStep("success")
+      setProgress(100)
+      router.push("/dashboard")
+    }, 800) // Small delay for smooth UX
+  }, [router])
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -45,6 +79,8 @@ export default function LoginPage() {
     }
     
     setLoading(true)
+    setLoginStep("authenticating")
+    setProgress(10)
     
     try {
       const loginData = { 
@@ -53,15 +89,21 @@ export default function LoginPage() {
         location // Always include location (mandatory)
       }
       
+      setProgress(40)
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginData),
       })
       
+      setProgress(70)
+      
       if (res.ok) {
-        router.push("/dashboard")
+        setProgress(80)
+        handleSuccessfulLogin()
       } else {
+        setLoginStep("idle")
+        setProgress(0)
         const { error } = await res.json()
         setError(error ?? "Login failed")
       }
@@ -69,6 +111,10 @@ export default function LoginPage() {
       setError("Network error. Please try again.")
     } finally {
       setLoading(false)
+      if (loginStep !== "redirecting" && loginStep !== "success") {
+        setLoginStep("idle")
+        setProgress(0)
+      }
     }
   }
 
@@ -148,6 +194,41 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {/* Login Progress */}
+              {(loading || loginStep !== "idle") && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">
+                      {loginStep === "authenticating" && "Authenticating..."}
+                      {loginStep === "redirecting" && "Preparing dashboard..."}
+                      {loginStep === "success" && "Login successful!"}
+                    </span>
+                    <span>{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {loginStep === "authenticating" && (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b border-primary"></div>
+                        <span>Verifying credentials and location...</span>
+                      </>
+                    )}
+                    {loginStep === "redirecting" && (
+                      <>
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        <span>Loading your workspace...</span>
+                      </>
+                    )}
+                    {loginStep === "success" && (
+                      <>
+                        <ArrowRight className="h-3 w-3 text-primary animate-pulse" />
+                        <span>Redirecting to dashboard...</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Mandatory Location Status */}
               {locationStatus === "requesting" && (
                 <Alert>
@@ -203,7 +284,11 @@ export default function LoginPage() {
                 disabled={loading || !location}
                 aria-busy={loading}
               >
-                {loading ? "Signing in..." : locationStatus === "requesting" ? "Waiting for location..." : "Sign in"}
+                {loginStep === "authenticating" ? "Authenticating..." : 
+                 loginStep === "redirecting" ? "Loading dashboard..." :
+                 loginStep === "success" ? "Success! Redirecting..." :
+                 loading ? "Signing in..." : 
+                 locationStatus === "requesting" ? "Waiting for location..." : "Sign in"}
               </Button>
             </form>
 

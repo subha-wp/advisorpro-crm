@@ -170,7 +170,17 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    const res = NextResponse.json({ ok: true, workspaceId: wsId, role })
+    // Return minimal response for faster processing
+    const res = NextResponse.json({ 
+      ok: true, 
+      workspaceId: wsId, 
+      role,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      }
+    })
     attachAuthCookies(res, access, `${refreshId}:${refreshPlain}`)
     return res
   } catch (err) {

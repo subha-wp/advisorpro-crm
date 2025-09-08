@@ -41,10 +41,23 @@ export function DesktopSidebar() {
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
   
-  const { data: profileData } = useSWR("/api/user/profile", fetcher)
-  const { data: workspaceData } = useSWR("/api/workspace", fetcher)
-  const { data: planData } = useSWR("/api/plan", fetcher)
-  const { data: teamData } = useSWR("/api/team", fetcher)
+  // Optimize data fetching with better error handling and caching
+  const { data: profileData } = useSWR("/api/user/profile", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000 // Cache for 1 minute
+  })
+  const { data: workspaceData } = useSWR("/api/workspace", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000
+  })
+  const { data: planData } = useSWR("/api/plan", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 300000 // Cache plan for 5 minutes
+  })
+  const { data: teamData } = useSWR("/api/team", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 120000 // Cache team for 2 minutes
+  })
   
   const user = profileData?.item
   const workspace = workspaceData?.item
