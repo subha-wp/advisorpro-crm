@@ -10,8 +10,9 @@ import { hashPassword } from "@/lib/auth/password"
 import { nameSchema, emailSchema, phoneSchema, sanitizeString, sanitizeEmail, sanitizePhone } from "@/lib/validation"
 import { apiLimiter } from "@/lib/rate-limit"
 import { sendEmail } from "@/lib/email"
-import { generateTeamInviteEmail } from "@/lib/email-templates"
+
 import crypto from "node:crypto"
+import { generateTeamInviteEmail } from "@/lib/email-templates"
 
 const InviteUserSchema = z.object({
   name: nameSchema,

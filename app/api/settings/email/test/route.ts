@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))
     const { testEmail } = body
+    
 
     if (!testEmail) {
       return NextResponse.json({ error: "Test email address is required" }, { status: 400 })

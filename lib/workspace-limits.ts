@@ -3,9 +3,9 @@ import { getWorkspacePlan } from "@/lib/plan"
 
 export const PLAN_LIMITS = {
   FREE: {
-    maxUsers: 3, // Owner + 2 employees
-    maxClients: 100,
-    maxPolicies: 500,
+    maxUsers: 4, // Owner + 2 employees
+    maxClients: 5000,
+    maxPolicies: 50000,
     maxTemplates: 5,
     automations: false,
     bulkOperations: false,
@@ -15,7 +15,7 @@ export const PLAN_LIMITS = {
   PREMIUM: {
     maxUsers: 50,
     maxClients: 10000,
-    maxPolicies: 50000,
+    maxPolicies: 100000,
     maxTemplates: 100,
     automations: true,
     bulkOperations: true,
