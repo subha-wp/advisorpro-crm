@@ -19,7 +19,9 @@ export function EmailSettings() {
   const [fromEmail, setFromEmail] = useState("")
   const [fromName, setFromName] = useState("")
   const [apiKey, setApiKey] = useState("")
+  const [testEmail, setTestEmail] = useState("")
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
 
   // Update form when data loads
   useEffect(() => {
@@ -82,6 +84,51 @@ export function EmailSettings() {
     }
   }
 
+  async function onTestEmail(e: React.FormEvent) {
+    e.preventDefault()
+    if (!testEmail.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a test email address",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setTesting(true)
+    
+    try {
+      const res = await fetch("/api/settings/email/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ testEmail: testEmail.trim() }),
+      })
+      
+      const responseData = await res.json()
+      
+      if (res.ok) {
+        toast({ 
+          title: "Test email sent", 
+          description: `Check your inbox at ${testEmail} for the test email`
+        })
+        setTestEmail("")
+      } else {
+        toast({ 
+          title: "Test failed", 
+          description: responseData.error || "Failed to send test email",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      toast({ 
+        title: "Test failed", 
+        description: "Network error. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setTesting(false)
+    }
+  }
   return (
     <div className="space-y-6">
       {/* Status Alert */}
@@ -313,9 +360,18 @@ export function EmailSettings() {
                 <p className="text-sm text-muted-foreground mb-3">
                   Send a test email to verify your configuration is working
                 </p>
-                <Button variant="outline" size="sm" disabled>
-                  Send Test Email (Coming Soon)
-                </Button>
+                <form onSubmit={onTestEmail} className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="Enter test email address"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="submit" variant="outline" size="sm" disabled={testing}>
+                    {testing ? "Sending..." : "Send Test"}
+                  </Button>
+                </form>
               </div>
             )}
           </CardContent>

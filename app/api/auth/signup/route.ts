@@ -9,6 +9,9 @@ import { attachAuthCookies } from "@/lib/auth/cookies"
 import { createAuditLog } from "@/lib/audit"
 import { authLimiter } from "@/lib/rate-limit"
 import { nameSchema, emailSchema, phoneSchema, passwordSchema, workspaceNameSchema, sanitizeString, sanitizeEmail, sanitizePhone } from "@/lib/validation"
+import { saveUserLocation, reverseGeocode } from "@/lib/location"
+import { sendEmail } from "@/lib/email"
+import { generateWelcomeEmail } from "@/lib/email-templates"
 import crypto from "node:crypto"
 
 const SignupSchema = z.object({
@@ -137,6 +140,29 @@ export async function POST(req: NextRequest) {
       }
     })
 
+    // Send welcome email if email is configured
+    try {
+      const loginUrl = `${req.headers.get('origin') || 'https://advisorpro.com'}/login`
+      const emailData = generateWelcomeEmail({
+        userName: name,
+        workspaceName: workspaceName,
+        loginUrl,
+        isNewUser: true
+      })
+
+      await sendEmail({
+        workspaceId: workspace.id,
+        to: email,
+        subject: emailData.subject,
+        html: emailData.html,
+        text: emailData.text,
+      })
+
+      console.log(`[Signup] Welcome email sent to ${email}`)
+    } catch (emailError) {
+      console.error("[Signup] Failed to send welcome email:", emailError)
+      // Don't fail signup if email fails - just log it
+    }
     // Return user data for immediate UI updates
     const res = NextResponse.json({ 
       ok: true, 

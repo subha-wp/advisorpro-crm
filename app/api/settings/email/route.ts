@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
       fromEmail: workspace.resendFromEmail || "",
       fromName: workspace.resendFromName || "",
       isConfigured: !!workspace.resendApiKeyEnc,
+      workspaceName: workspace.name,
     })
   } catch (error) {
     console.error("[Email Settings GET Error]", error)

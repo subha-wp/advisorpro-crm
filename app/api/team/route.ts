@@ -9,6 +9,8 @@ import { createAuditLog } from "@/lib/audit"
 import { hashPassword } from "@/lib/auth/password"
 import { nameSchema, emailSchema, phoneSchema, sanitizeString, sanitizeEmail, sanitizePhone } from "@/lib/validation"
 import { apiLimiter } from "@/lib/rate-limit"
+import { sendEmail } from "@/lib/email"
+import { generateTeamInviteEmail } from "@/lib/email-templates"
 import crypto from "node:crypto"
 
 const InviteUserSchema = z.object({
@@ -130,6 +132,34 @@ export async function POST(req: NextRequest) {
       }
     })
 
+    // Send team invite email for existing user
+    try {
+      const loginUrl = `${req.headers.get('origin') || 'https://advisorpro.com'}/login`
+      const workspace = await prisma.workspace.findUnique({
+        where: { id: session.ws },
+        include: { owner: { select: { name: true } } }
+      })
+      
+      const emailData = generateTeamInviteEmail({
+        userName: existingUser.name || 'Team Member',
+        workspaceName: workspace?.name || 'Workspace',
+        inviterName: workspace?.owner?.name || 'Workspace Owner',
+        loginUrl,
+        role: data.role,
+      })
+
+      await sendEmail({
+        workspaceId: session.ws,
+        to: existingUser.email,
+        subject: emailData.subject,
+        html: emailData.html,
+        text: emailData.text,
+      })
+
+      console.log(`[Team Invite] Email sent to existing user ${existingUser.email}`)
+    } catch (emailError) {
+      console.error("[Team Invite] Failed to send email to existing user:", emailError)
+    }
     return NextResponse.json({ 
       item: { 
         ...membership, 
@@ -174,8 +204,36 @@ export async function POST(req: NextRequest) {
     after: { userId: user.id, role: data.role, tempPassword: true }
   })
 
-  // TODO: Send invitation email with temporary password
-  // For now, return the temp password in response (in production, this should be emailed)
+  // Send welcome email with temporary password
+  try {
+    const loginUrl = `${req.headers.get('origin') || 'https://advisorpro.com'}/login`
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: session.ws },
+      include: { owner: { select: { name: true } } }
+    })
+    
+    const emailData = generateTeamInviteEmail({
+      userName: data.name,
+      workspaceName: workspace?.name || 'Workspace',
+      inviterName: workspace?.owner?.name || 'Workspace Owner',
+      loginUrl,
+      tempPassword,
+      role: data.role,
+    })
+
+    await sendEmail({
+      workspaceId: session.ws,
+      to: data.email,
+      subject: emailData.subject,
+      html: emailData.html,
+      text: emailData.text,
+    })
+
+    console.log(`[Team Invite] Welcome email sent to new user ${data.email}`)
+  } catch (emailError) {
+    console.error("[Team Invite] Failed to send welcome email:", emailError)
+    // Don't fail the invitation if email fails
+  }
 
   return NextResponse.json({ 
     item: { 
@@ -188,6 +246,7 @@ export async function POST(req: NextRequest) {
         avatarUrl: user.avatarUrl
       } 
     },
-    tempPassword // Remove this in production - send via email instead
+    emailSent: true,
+    message: "Invitation sent via email"
   })
 }

@@ -48,8 +48,8 @@ export default function TeamPage() {
       if (res.ok) {
         toast({ 
           title: "User invited", 
-          description: data.tempPassword 
-            ? `Temporary password: ${data.tempPassword}` 
+          description: data.emailSent 
+            ? "Invitation email sent successfully" 
             : "User added to workspace"
         })
         setOpen(false)
