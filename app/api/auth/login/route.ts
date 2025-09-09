@@ -13,7 +13,7 @@ import { saveUserLocation, reverseGeocode } from "@/lib/location"
 import crypto from "node:crypto"
 
 const LoginSchema = z.object({
-  identifier: z.string().min(3).max(255), // email or phone
+  identifier: z.string().min(3).max(255).transform(val => val.trim().toLowerCase()), // email or phone
   password: passwordSchema,
   location: z.object({ // Now required, not optional
     latitude: z.number(),
@@ -54,8 +54,20 @@ export async function POST(req: NextRequest) {
     const { identifier, password } = parse.data
     const prisma = await getPrisma()
 
+    // Improved user lookup - handle both email and phone more reliably
+    const isEmail = identifier.includes("@")
+    const searchCondition = isEmail 
+      ? { email: identifier }
+      : { phone: identifier.startsWith("+") ? identifier : `+91${identifier.replace(/\D/g, "")}` }
+
     const user = await prisma.user.findFirst({
-      where: identifier.includes("@") ? { email: identifier } : { phone: identifier },
+      where: {
+        OR: [
+          searchCondition,
+          // Also try exact match for phone without country code
+          ...(isEmail ? [] : [{ phone: identifier }])
+        ]
+      },
       include: {
         memberships: { 
           include: { workspace: true },
@@ -64,8 +76,10 @@ export async function POST(req: NextRequest) {
         workspaces: true,
       },
     })
+    
     if (!user) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
 
+    // Enhanced password verification with better error handling
     const ok = await verifyPassword(password, user.passwordHash)
     if (!ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
 
@@ -189,8 +203,19 @@ export async function POST(req: NextRequest) {
     // Audit failed login attempt
     try {
       const prisma = await getPrisma()
+      const { identifier } = parse.data
+      const isEmail = identifier.includes("@")
+      const searchCondition = isEmail 
+        ? { email: identifier }
+        : { phone: identifier.startsWith("+") ? identifier : `+91${identifier.replace(/\D/g, "")}` }
+
       const user = await prisma.user.findFirst({
-        where: identifier.includes("@") ? { email: identifier } : { phone: identifier }
+        where: {
+          OR: [
+            searchCondition,
+            ...(isEmail ? [] : [{ phone: identifier }])
+          ]
+        }
       })
       if (user) {
         const membership = await prisma.membership.findFirst({

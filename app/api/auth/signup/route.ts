@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     const rawData = parse.data
     const name = sanitizeString(rawData.name)
     const email = sanitizeEmail(rawData.email)
-    const phone = sanitizePhone(rawData.phone)
+    const phone = sanitizePhone(rawData.phone) // This will now ensure proper format
     const password = rawData.password
     const workspaceName = sanitizeString(rawData.workspaceName)
     const location = parse.data.location

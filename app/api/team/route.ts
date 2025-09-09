@@ -175,7 +175,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Create new user with temporary password
-  const tempPassword = crypto.randomBytes(12).toString('hex')
+  // Generate a more user-friendly temporary password
+  const tempPassword = generateTempPassword()
   const passwordHash = await hashPassword(tempPassword)
 
   const user = await prisma.user.create({
@@ -250,4 +251,32 @@ export async function POST(req: NextRequest) {
     emailSent: true,
     message: "Invitation sent via email"
   })
+}
+
+// Helper function to generate user-friendly temporary passwords
+function generateTempPassword(): string {
+  // Generate a password with mix of uppercase, lowercase, and numbers
+  // Format: ABC123def (3 uppercase + 3 numbers + 3 lowercase)
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  const numbers = '0123456789'
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz'
+  
+  let password = ''
+  
+  // 3 uppercase letters
+  for (let i = 0; i < 3; i++) {
+    password += uppercase.charAt(Math.floor(Math.random() * uppercase.length))
+  }
+  
+  // 3 numbers
+  for (let i = 0; i < 3; i++) {
+    password += numbers.charAt(Math.floor(Math.random() * numbers.length))
+  }
+  
+  // 3 lowercase letters
+  for (let i = 0; i < 3; i++) {
+    password += lowercase.charAt(Math.floor(Math.random() * lowercase.length))
+  }
+  
+  return password
 }

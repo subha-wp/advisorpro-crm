@@ -40,7 +40,13 @@ export function sanitizeString(input: string): string {
 }
 
 export function sanitizePhone(input: string): string {
-  return input.replace(/[^\d\+]/g, '')
+  // Ensure phone starts with + and contains only digits and +
+  const cleaned = input.replace(/[^\d\+]/g, '')
+  if (cleaned.startsWith('+')) {
+    return cleaned
+  }
+  // If no country code, assume India (+91)
+  return cleaned.length >= 10 ? `+91${cleaned}` : cleaned
 }
 
 export function sanitizeEmail(input: string): string {

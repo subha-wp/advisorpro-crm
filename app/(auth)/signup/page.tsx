@@ -175,6 +175,9 @@ export default function SignupPage() {
                   required
                   className="h-11"
                 />
+                <p className="text-xs text-muted-foreground">
+                  This will be your username for signing in
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -189,6 +192,9 @@ export default function SignupPage() {
                   required
                   className="h-11"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Include country code (e.g., +91 for India)
+                </p>
               </div>
 
               <div className="space-y-2">

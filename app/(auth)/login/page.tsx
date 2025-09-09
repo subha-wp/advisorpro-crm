@@ -153,16 +153,20 @@ export default function LoginPage() {
             <form className="space-y-4" onSubmit={onSubmit}>
               <div className="space-y-2">
                 <label htmlFor="identifier" className="text-sm font-medium text-foreground">
-                  Email or Phone
+                  Email Address
                 </label>
                 <Input
                   id="identifier"
-                  placeholder="Enter your email or phone number"
+                  type="email"
+                  placeholder="Enter your email address"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   required
                   className="h-11"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Use your email address to sign in
+                </p>
               </div>
               
               <div className="space-y-2">
@@ -186,6 +190,9 @@ export default function LoginPage() {
                   required
                   className="h-11"
                 />
+                <p className="text-xs text-muted-foreground">
+                  For temporary passwords, copy and paste exactly as received in email
+                </p>
               </div>
 
               {error && (

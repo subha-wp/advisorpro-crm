@@ -105,8 +105,16 @@ export function generateTeamInviteEmail(data: TeamInviteEmailData): EmailTemplat
             <div class="credentials-box">
               <h3>🔐 Your Account Credentials</h3>
               <p><strong>Email:</strong> This email address</p>
-              <p><strong>Temporary Password:</strong> <code style="background: #fff; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${tempPassword}</code></p>
+              <p><strong>Temporary Password:</strong> <code style="background: #fff; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 16px; letter-spacing: 1px; font-weight: bold; color: #dc2626;">${tempPassword}</code></p>
               <p style="margin-top: 15px; font-size: 14px;"><strong>Important:</strong> Please change your password after your first login for security.</p>
+              <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                <p style="margin: 0; color: #92400e; font-size: 14px;"><strong>Login Instructions:</strong></p>
+                <ol style="margin: 10px 0 0 20px; color: #92400e; font-size: 14px;">
+                  <li>Use your email address as username</li>
+                  <li>Copy and paste the temporary password exactly as shown</li>
+                  <li>Change your password immediately after first login</li>
+                </ol>
+              </div>
             </div>
           ` : `
             <div class="security-note">
@@ -339,7 +347,10 @@ Your Login Credentials:
 - Email: This email address  
 - Temporary Password: ${tempPassword}
 
-SECURITY: Please change this password after your first login.
+IMPORTANT: 
+- Copy and paste the temporary password exactly as shown
+- Use your email address as username
+- Change this password after your first login for security
 ` : ''}
 
 What you can do with AdvisorPro:
