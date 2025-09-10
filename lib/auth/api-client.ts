@@ -5,10 +5,10 @@
 class ApiClient {
   private refreshPromise: Promise<boolean> | null = null
   private requestCache = new Map<string, { data: any, timestamp: number }>()
-  private readonly CACHE_TTL = 30000 // 30 seconds cache for GET requests
+  private readonly CACHE_TTL = 60000 // 1 minute cache for GET requests
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
-    // Check cache for GET requests
+    // Enhanced caching for GET requests
     if (options.method === 'GET' || !options.method) {
       const cached = this.requestCache.get(url)
       if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
@@ -22,15 +22,15 @@ class ApiClient {
     const response = await fetch(url, {
       ...options,
       credentials: 'include',
-      // Add performance headers
+      // Optimized headers for faster requests
       headers: {
         ...options.headers,
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+        'Cache-Control': 'max-age=60',
+        'Accept': 'application/json'
       }
     })
 
-    // Cache successful GET responses
+    // Cache successful GET responses more aggressively
     if (response.ok && (options.method === 'GET' || !options.method)) {
       try {
         const data = await response.clone().json()
@@ -87,9 +87,6 @@ class ApiClient {
       const response = await fetch('/api/auth/refresh', {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
       })
 
       return response.ok

@@ -184,16 +184,10 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    // Return minimal response for faster processing
+    // Return optimized response for immediate dashboard access
     const res = NextResponse.json({ 
       ok: true, 
-      workspaceId: wsId, 
-      role,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      }
+      redirect: "/dashboard"
     })
     attachAuthCookies(res, access, `${refreshId}:${refreshPlain}`)
     return res

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -9,9 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useLocationTracker } from "@/components/location/location-tracker"
-import { MapPin, AlertTriangle, CheckCircle, ArrowRight } from "lucide-react"
+import { MapPin, AlertTriangle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Progress } from "@/components/ui/progress"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -22,8 +21,6 @@ export default function SignupPage() {
   const [workspaceName, setWorkspaceName] = useState("My Workspace")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [signupStep, setSignupStep] = useState<"idle" | "creating" | "redirecting" | "success">("idle")
-  const [progress, setProgress] = useState(0)
   const [locationStatus, setLocationStatus] = useState<"requesting" | "granted" | "denied" | "error">("requesting")
   const { location, requestLocation } = useLocationTracker()
 
@@ -40,35 +37,6 @@ export default function SignupPage() {
     getLocation()
   }, [requestLocation])
 
-  // Progress simulation for signup
-  useEffect(() => {
-    if (signupStep === "creating") {
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 70) return prev
-          return prev + Math.random() * 12
-        })
-      }, 250)
-      return () => clearInterval(interval)
-    } else if (signupStep === "redirecting") {
-      setProgress(85)
-      const timeout = setTimeout(() => setProgress(100), 600)
-      return () => clearTimeout(timeout)
-    } else if (signupStep === "success") {
-      setProgress(100)
-    }
-  }, [signupStep])
-
-  const handleSuccessfulSignup = useCallback(() => {
-    setSignupStep("redirecting")
-    setProgress(85)
-    
-    setTimeout(() => {
-      setSignupStep("success")
-      setProgress(100)
-      router.push("/dashboard")
-    }, 900)
-  }, [router])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -81,8 +49,6 @@ export default function SignupPage() {
     }
     
     setLoading(true)
-    setSignupStep("creating")
-    setProgress(15)
     try {
       const signupData = { 
         name, 
@@ -93,20 +59,17 @@ export default function SignupPage() {
         location // Always include location (mandatory)
       }
       
-      setProgress(50)
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(signupData),
       })
       
-      setProgress(75)
       
       if (res.ok) {
-        handleSuccessfulSignup()
+        // Immediate redirect for faster UX
+        router.push("/dashboard")
       } else {
-        setSignupStep("idle")
-        setProgress(0)
         const data = await res.json().catch(() => ({ error: "Signup failed" }))
         setError(data?.error ?? "Signup failed")
       }
@@ -114,10 +77,6 @@ export default function SignupPage() {
       setError("Network error. Please try again.")
     } finally {
       setLoading(false)
-      if (signupStep !== "redirecting" && signupStep !== "success") {
-        setSignupStep("idle")
-        setProgress(0)
-      }
     }
   }
 
@@ -275,40 +234,6 @@ export default function SignupPage() {
                 </Alert>
               )}
 
-              {/* Signup Progress */}
-              {(loading || signupStep !== "idle") && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">
-                      {signupStep === "creating" && "Creating your account..."}
-                      {signupStep === "redirecting" && "Setting up workspace..."}
-                      {signupStep === "success" && "Account created successfully!"}
-                    </span>
-                    <span>{Math.round(progress)}%</span>
-                  </div>
-                  <Progress value={progress} className="h-2" />
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {signupStep === "creating" && (
-                      <>
-                        <div className="animate-spin rounded-full h-3 w-3 border-b border-primary"></div>
-                        <span>Creating user account and workspace...</span>
-                      </>
-                    )}
-                    {signupStep === "redirecting" && (
-                      <>
-                        <CheckCircle className="h-3 w-3 text-green-500" />
-                        <span>Preparing your dashboard...</span>
-                      </>
-                    )}
-                    {signupStep === "success" && (
-                      <>
-                        <ArrowRight className="h-3 w-3 text-primary animate-pulse" />
-                        <span>Welcome! Redirecting...</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {error && (
                 <div
@@ -325,10 +250,7 @@ export default function SignupPage() {
                 disabled={loading || !location} 
                 aria-busy={loading}
               >
-                {signupStep === "creating" ? "Creating account..." : 
-                 signupStep === "redirecting" ? "Setting up workspace..." :
-                 signupStep === "success" ? "Success! Redirecting..." :
-                 loading ? "Creating..." : 
+                {loading ? "Creating account..." : 
                  locationStatus === "requesting" ? "Waiting for location..." : "Create account"}
               </Button>
             </form>
@@ -346,7 +268,7 @@ export default function SignupPage() {
               <p className="text-sm text-muted-foreground">
                 You can{" "}
                 <Link
-                  href="/auth/login"
+                  href="/login"
                   className="text-primary hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
                 >
                   sign in here

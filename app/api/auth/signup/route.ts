@@ -151,11 +151,14 @@ export async function POST(req: NextRequest) {
         isNewUser: true
       })
 
-      await sendSystemEmail({
+      // Send email asynchronously to avoid blocking the response
+      sendSystemEmail({
         to: email,
         subject: emailData.subject,
         html: emailData.html,
         text: emailData.text,
+      }).catch(emailError => {
+        console.error("[Signup] Failed to send welcome email:", emailError)
       })
 
       console.log(`[Signup] Welcome email sent to ${email}`)
@@ -163,20 +166,11 @@ export async function POST(req: NextRequest) {
       console.error("[Signup] Failed to send welcome email:", emailError)
       // Don't fail signup if email fails - just log it
     }
-    // Return user data for immediate UI updates
+    
+    // Return optimized response for immediate dashboard access
     const res = NextResponse.json({ 
       ok: true, 
-      workspaceId: workspace.id,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      },
-      workspace: {
-        id: workspace.id,
-        name: workspace.name,
-        plan: workspace.plan
-      }
+      redirect: "/dashboard"
     })
     attachAuthCookies(res, access, `${refreshId}:${refreshPlain}`)
     return res

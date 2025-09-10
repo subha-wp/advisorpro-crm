@@ -31,19 +31,23 @@ export function DesktopSidebar() {
   // Optimize data fetching with better error handling and caching
   const { data: profileData } = useSWR("/api/user/profile", fetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 60000 // Cache for 1 minute
+    dedupingInterval: 300000, // Cache for 5 minutes
+    errorRetryCount: 1
   })
   const { data: workspaceData } = useSWR("/api/workspace", fetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 60000
+    dedupingInterval: 300000, // Cache for 5 minutes
+    errorRetryCount: 1
   })
   const { data: planData } = useSWR("/api/plan", fetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 300000 // Cache plan for 5 minutes
+    dedupingInterval: 600000, // Cache plan for 10 minutes
+    errorRetryCount: 1
   })
   const { data: teamData } = useSWR("/api/team", fetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 120000 // Cache team for 2 minutes
+    dedupingInterval: 300000, // Cache team for 5 minutes
+    errorRetryCount: 1
   })
   
   const user = profileData?.item
@@ -57,9 +61,10 @@ export function DesktopSidebar() {
   async function handleLogout() {
     try {
       await fetch("/api/auth/logout", { method: "POST" })
-      router.push("/login")
+      window.location.href = "/login" // Force full page reload for clean logout
     } catch (error) {
       console.error("Logout failed:", error)
+      window.location.href = "/login"
     }
   }
 

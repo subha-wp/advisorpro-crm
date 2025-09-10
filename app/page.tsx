@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { getServerSession } from "@/lib/session"
 
 export default async function Root() {
-  // Check if user is already authenticated for faster redirect
+  // Optimized auth check for faster redirects
   const session = await getServerSession()
   
   if (session) {

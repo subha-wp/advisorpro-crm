@@ -54,18 +54,45 @@ const statusChartConfig = {
 
 export default function DashboardPage() {
   // Use SWR with optimized settings for faster loading
-  const { data: statsData } = useSWR("/api/workspace/stats", fetcher)
-  const { data: planData } = useSWR("/api/plan", fetcher)
-  const { data: taskStatsData } = useSWR("/api/tasks/stats", fetcher)
-  const { data: teamData } = useSWR("/api/team", fetcher)
-  const { data: premiumsData } = useSWR("/api/premiums", fetcher)
-  const { data: policiesData } = useSWR("/api/policies?pageSize=100", fetcher)
-  const { data: clientsData } = useSWR("/api/clients?pageSize=50", fetcher)
-  const { data: auditData } = useSWR("/api/audit?pageSize=10", fetcher)
-  const { data: locationsData } = useSWR("/api/locations?type=current", fetcher)
+  const { data: statsData } = useSWR("/api/workspace/stats", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 30000
+  })
+  const { data: planData } = useSWR("/api/plan", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000
+  })
+  const { data: taskStatsData } = useSWR("/api/tasks/stats", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 30000
+  })
+  const { data: teamData } = useSWR("/api/team", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000
+  })
+  const { data: premiumsData } = useSWR("/api/premiums", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 45000
+  })
+  const { data: policiesData } = useSWR("/api/policies?pageSize=50", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000
+  })
+  const { data: clientsData } = useSWR("/api/clients?pageSize=30", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000
+  })
+  const { data: auditData } = useSWR("/api/audit?pageSize=5", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 120000
+  })
+  const { data: locationsData } = useSWR("/api/locations?type=current", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000
+  })
 
   // Show loading state for critical data
-  const isLoadingCritical = !statsData || !planData || !taskStatsData
+  const isLoadingCritical = !statsData || !planData
   
   if (isLoadingCritical) {
     return (
@@ -78,7 +105,7 @@ export default function DashboardPage() {
   // Data processing
   const stats = statsData?.stats
   const plan = planData?.plan
-  const taskStats = taskStatsData?.stats
+  const taskStats = taskStatsData?.stats || { total: 0, pending: 0, inProgress: 0, completed: 0, urgent: 0, overdue: 0 }
   const teamMembers = teamData?.items ?? []
   const premiumsSummary = premiumsData?.summary
   const policies = policiesData?.items ?? []

@@ -34,11 +34,6 @@ export async function middleware(request: NextRequest) {
       throw new Error("Invalid token type")
     }
 
-    // Verify the user still has access to this workspace
-    if (pathname.startsWith("/api/")) {
-      // For API routes, we'll let the individual route handlers verify workspace access
-      // This prevents middleware from making too many DB calls
-    }
     // Check if token is close to expiry (within 5 minutes)
     const now = Math.floor(Date.now() / 1000)
     const timeUntilExpiry = payload.exp! - now
@@ -58,17 +53,17 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Add user info to headers for API routes with performance optimization
+    // Optimized headers for API routes
     const response = NextResponse.next()
     response.headers.set("x-user-id", payload.sub)
     response.headers.set("x-workspace-id", payload.ws)
     response.headers.set("x-user-role", payload.role)
     
-    // Add cache control headers for better performance
+    // Optimized cache control headers
     if (pathname.startsWith("/api/")) {
-      response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate")
+      response.headers.set("Cache-Control", "private, max-age=30")
     } else {
-      response.headers.set("Cache-Control", "private, max-age=0")
+      response.headers.set("Cache-Control", "private, max-age=60")
     }
     
     return response
