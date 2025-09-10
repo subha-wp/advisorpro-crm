@@ -1,31 +1,56 @@
 // @ts-nocheck
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useToast } from "@/hooks/use-toast"
-import { CalendarIcon, Calculator, FileText, User, Building2, CreditCard, Settings, Plus, X } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
-import { ClientSearchSelect } from "./client-search-select"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useToast } from "@/hooks/use-toast";
+import {
+  CalendarIcon,
+  Calculator,
+  FileText,
+  User,
+  Building2,
+  CreditCard,
+  Settings,
+  Plus,
+  X,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ClientSearchSelect } from "./client-search-select";
 
 interface EnhancedPolicyFormProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  policy?: any
-  onSuccess?: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  policy?: any;
+  onSuccess?: () => void;
 }
 
 const insurers = [
@@ -51,7 +76,7 @@ const insurers = [
   "Shriram Life",
   "Star Union Dai-ichi Life",
   "Other",
-]
+];
 
 const premiumModes = [
   { value: "MONTHLY", label: "Monthly", factor: 12 },
@@ -59,20 +84,26 @@ const premiumModes = [
   { value: "HALF_YEARLY", label: "Half Yearly", factor: 2 },
   { value: "YEARLY", label: "Yearly", factor: 1 },
   { value: "SINGLE", label: "Single Premium", factor: 1 },
-]
+];
 
 const policyStatuses = [
   { value: "ACTIVE", label: "Active", color: "default" },
   { value: "LAPSED", label: "Lapsed", color: "destructive" },
   { value: "MATURED", label: "Matured", color: "secondary" },
   { value: "SURRENDERED", label: "Surrendered", color: "outline" },
-]
+];
 
-export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSuccess }: EnhancedPolicyFormProps) {
-  const { toast } = useToast()
-  const [submitting, setSubmitting] = useState(false)
-  const [activeTab, setActiveTab] = useState("basic")
-  const [selectedClient, setSelectedClient] = useState<any>(null)
+export function EnhancedPolicyForm({
+  open,
+  onOpenChange,
+  client,
+  policy,
+  onSuccess,
+}: EnhancedPolicyFormProps) {
+  const { toast } = useToast();
+  const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState("basic");
+  const [selectedClient, setSelectedClient] = useState<any>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -103,9 +134,9 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
 
     // Riders
     riders: [] as Array<{
-      name: string
-      sumAssured: string
-      premium: string
+      name: string;
+      sumAssured: string;
+      premium: string;
     }>,
 
     // Advanced Options
@@ -121,45 +152,49 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
     chequeNumber: "",
     bankName: "",
     remarks: "",
-  })
+  });
 
   // Auto-calculations
   useEffect(() => {
     if (form.annualPremium && form.premiumMode) {
-      const mode = premiumModes.find((m) => m.value === form.premiumMode)
+      const mode = premiumModes.find((m) => m.value === form.premiumMode);
       if (mode) {
-        const installment = Number.parseFloat(form.annualPremium) / mode.factor
-        setForm((f) => ({ ...f, installmentPremium: installment.toFixed(2) }))
+        const installment = Number.parseFloat(form.annualPremium) / mode.factor;
+        setForm((f) => ({ ...f, installmentPremium: installment.toFixed(2) }));
       }
     }
-  }, [form.annualPremium, form.premiumMode])
+  }, [form.annualPremium, form.premiumMode]);
 
   // Auto-calculate maturity date
   useEffect(() => {
     if (form.commencementDate && form.policyTerm) {
-      const years = Number.parseInt(form.policyTerm)
+      const years = Number.parseInt(form.policyTerm);
       if (!isNaN(years)) {
-        const maturity = new Date(form.commencementDate)
-        maturity.setFullYear(maturity.getFullYear() + years)
-        setForm((f) => ({ ...f, maturityDate: maturity }))
+        const maturity = new Date(form.commencementDate);
+        maturity.setFullYear(maturity.getFullYear() + years);
+        setForm((f) => ({ ...f, maturityDate: maturity }));
       }
     }
-  }, [form.commencementDate, form.policyTerm])
+  }, [form.commencementDate, form.policyTerm]);
 
   // Initialize form
   useEffect(() => {
     if (open) {
       if (policy) {
         // Edit mode
-        setSelectedClient(null) // Will be loaded from policy.clientId
+        setSelectedClient(null); // Will be loaded from policy.clientId
         setForm({
           clientId: policy.clientId,
           policyNumber: policy.policyNumber || "",
           insurer: policy.insurer || "",
           planName: policy.planName || "",
           policyType: "",
-          commencementDate: policy.commencementDate ? new Date(policy.commencementDate) : null,
-          maturityDate: policy.maturityDate ? new Date(policy.maturityDate) : null,
+          commencementDate: policy.commencementDate
+            ? new Date(policy.commencementDate)
+            : null,
+          maturityDate: policy.maturityDate
+            ? new Date(policy.maturityDate)
+            : null,
           status: policy.status || "ACTIVE",
           sumAssured: policy.sumAssured?.toString() || "",
           premiumAmount: policy.premiumAmount?.toString() || "",
@@ -168,7 +203,9 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
           premiumPayingTerm: "",
           policyTerm: "",
           nextDueDate: policy.nextDueDate ? new Date(policy.nextDueDate) : null,
-          lastPaidDate: policy.lastPaidDate ? new Date(policy.lastPaidDate) : null,
+          lastPaidDate: policy.lastPaidDate
+            ? new Date(policy.lastPaidDate)
+            : null,
           installmentPremium: "",
           riders: [],
           nomineeDetails: "",
@@ -181,10 +218,10 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
           chequeNumber: "",
           bankName: "",
           remarks: "",
-        })
+        });
       } else {
         // Create mode
-        setSelectedClient(null)
+        setSelectedClient(null);
         setForm({
           clientId: "",
           policyNumber: "",
@@ -214,58 +251,60 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
           chequeNumber: "",
           bankName: "",
           remarks: "",
-        })
+        });
       }
     }
-  }, [open, policy])
+  }, [open, policy]);
 
   // Load client data when clientId changes (for edit mode)
   useEffect(() => {
     if (form.clientId && !selectedClient) {
       const loadClient = async () => {
         try {
-          const res = await fetch(`/api/clients/${form.clientId}`)
+          const res = await fetch(`/api/clients/${form.clientId}`);
           if (res.ok) {
-            const data = await res.json()
-            setSelectedClient(data.item)
+            const data = await res.json();
+            setSelectedClient(data.item);
           }
         } catch (error) {
-          console.error("Failed to load client:", error)
+          console.error("Failed to load client:", error);
         }
-      }
-      loadClient()
+      };
+      loadClient();
     }
-  }, [form.clientId, selectedClient])
+  }, [form.clientId, selectedClient]);
 
   function addRider() {
     setForm((f) => ({
       ...f,
       riders: [...f.riders, { name: "", sumAssured: "", premium: "" }],
-    }))
+    }));
   }
 
   function removeRider(index: number) {
     setForm((f) => ({
       ...f,
       riders: f.riders.filter((_, i) => i !== index),
-    }))
+    }));
   }
 
   function updateRider(index: number, field: string, value: string) {
     setForm((f) => ({
       ...f,
-      riders: f.riders.map((rider, i) => (i === index ? { ...rider, [field]: value } : rider)),
-    }))
+      riders: f.riders.map((rider, i) =>
+        i === index ? { ...rider, [field]: value } : rider
+      ),
+    }));
   }
 
   function handleClientSelect(client: any) {
-    setSelectedClient(client)
-    setForm(f => ({ ...f, clientId: client.id }))
+    setSelectedClient(client);
+    setForm((f) => ({ ...f, clientId: client.id }));
   }
 
   async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
+    e.preventDefault();
+    setSubmitting(true);
 
     try {
       const payload = {
@@ -273,8 +312,12 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
         policyNumber: form.policyNumber.trim(),
         insurer: form.insurer,
         planName: form.planName.trim() || undefined,
-        sumAssured: form.sumAssured ? Number.parseFloat(form.sumAssured) : undefined,
-        premiumAmount: form.installmentPremium ? Number.parseFloat(form.installmentPremium) : undefined,
+        sumAssured: form.sumAssured
+          ? Number.parseFloat(form.sumAssured)
+          : undefined,
+        premiumAmount: form.installmentPremium
+          ? Number.parseFloat(form.installmentPremium)
+          : undefined,
         premiumMode: form.premiumMode,
         nextDueDate: form.nextDueDate?.toISOString(),
         lastPaidDate: form.lastPaidDate?.toISOString(),
@@ -298,40 +341,40 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
           bankName: form.bankName,
           remarks: form.remarks,
         },
-      }
+      };
 
-      const url = policy ? `/api/policies/${policy.id}` : "/api/policies"
-      const method = policy ? "PATCH" : "POST"
+      const url = policy ? `/api/policies/${policy.id}` : "/api/policies";
+      const method = policy ? "PATCH" : "POST";
 
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      })
+      });
 
       if (res.ok) {
         toast({
           title: policy ? "Policy updated" : "Policy created",
           description: `Policy ${form.policyNumber} has been ${policy ? "updated" : "created"} successfully`,
-        })
-        onSuccess?.()
-        onOpenChange(false)
+        });
+        onSuccess?.();
+        onOpenChange(false);
       } else {
-        const data = await res.json()
+        const data = await res.json();
         toast({
           title: "Error",
           description: data.error || "Failed to save policy",
           variant: "destructive",
-        })
+        });
       }
     } catch (error) {
       toast({
         title: "Error",
         description: "Network error. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
@@ -340,7 +383,7 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
     { id: "premium", label: "Premium Calculation", icon: Calculator },
     { id: "payment", label: "Payment Details", icon: CreditCard },
     { id: "advanced", label: "Advanced Options", icon: Settings },
-  ]
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -348,7 +391,7 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Building2 className="h-6 w-6 text-primary" />
-            {policy ? "Edit Policy" : "LIC Policy Entry"}
+            {policy ? "Edit Policy" : "Policy Entry"}
             {selectedClient && (
               <Badge variant="outline" className="ml-2">
                 <User className="h-3 w-3 mr-1" />
@@ -361,24 +404,24 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
         <div className="">
           {/* Tab Navigation */}
           <div className="w-fit space-x-2">
-            <nav className="flex py-4">
+            <nav className="grid grid-cols-2 md:grid-cols-4 gap-1">
               {tabs.map((tab) => {
-                const Icon = tab.icon
+                const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg transition-colors text-left",
+                      "w-full flex items-center gap-3 px-3 py-2 text-[11px] font-medium rounded-lg transition-colors text-left",
                       activeTab === tab.id
                         ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     )}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-3 w-3" />
                     {tab.label}
                   </button>
-                )
+                );
               })}
             </nav>
           </div>
@@ -402,13 +445,18 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                         Policy Details
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-6 space-y-4">
-                      <div className="grid grid-cols-3 gap-4">
+                    <CardContent className="pt-6 px-2 space-y-4">
+                      <div className="grid grid-cols-2 gap-2">
                         <div className="grid gap-2">
                           <Label>Policy Number *</Label>
                           <Input
                             value={form.policyNumber}
-                            onChange={(e) => setForm((f) => ({ ...f, policyNumber: e.target.value }))}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                policyNumber: e.target.value,
+                              }))
+                            }
                             placeholder="Enter policy number"
                             required
                           />
@@ -421,18 +469,26 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                                 variant="outline"
                                 className={cn(
                                   "justify-start text-left font-normal",
-                                  !form.commencementDate && "text-muted-foreground",
+                                  !form.commencementDate &&
+                                    "text-muted-foreground"
                                 )}
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {form.commencementDate ? format(form.commencementDate, "dd/MM/yyyy") : "Select date"}
+                                {form.commencementDate
+                                  ? format(form.commencementDate, "dd/MM/yyyy")
+                                  : "Select date"}
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
                               <Calendar
                                 mode="single"
                                 selected={form.commencementDate || undefined}
-                                onSelect={(date) => setForm((f) => ({ ...f, commencementDate: date || null }))}
+                                onSelect={(date) =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    commencementDate: date || null,
+                                  }))
+                                }
                                 initialFocus
                               />
                             </PopoverContent>
@@ -446,18 +502,25 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                                 variant="outline"
                                 className={cn(
                                   "justify-start text-left font-normal",
-                                  !form.maturityDate && "text-muted-foreground",
+                                  !form.maturityDate && "text-muted-foreground"
                                 )}
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {form.maturityDate ? format(form.maturityDate, "dd/MM/yyyy") : "Auto-calculated"}
+                                {form.maturityDate
+                                  ? format(form.maturityDate, "dd/MM/yyyy")
+                                  : "Auto-calculated"}
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
                               <Calendar
                                 mode="single"
                                 selected={form.maturityDate || undefined}
-                                onSelect={(date) => setForm((f) => ({ ...f, maturityDate: date || null }))}
+                                onSelect={(date) =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    maturityDate: date || null,
+                                  }))
+                                }
                                 initialFocus
                               />
                             </PopoverContent>
@@ -465,12 +528,14 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                           <Label>Insurer *</Label>
                           <Select
                             value={form.insurer}
-                            onValueChange={(value) => setForm((f) => ({ ...f, insurer: value }))}
+                            onValueChange={(value) =>
+                              setForm((f) => ({ ...f, insurer: value }))
+                            }
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select insurer" />
@@ -488,7 +553,12 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                           <Label>Plan Name</Label>
                           <Input
                             value={form.planName}
-                            onChange={(e) => setForm((f) => ({ ...f, planName: e.target.value }))}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                planName: e.target.value,
+                              }))
+                            }
                             placeholder="e.g., Jeevan Anand"
                           />
                         </div>
@@ -496,15 +566,21 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                           <Label>Policy Type</Label>
                           <Select
                             value={form.policyType}
-                            onValueChange={(value) => setForm((f) => ({ ...f, policyType: value }))}
+                            onValueChange={(value) =>
+                              setForm((f) => ({ ...f, policyType: value }))
+                            }
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select type" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="TERM">Term Life</SelectItem>
-                              <SelectItem value="WHOLE_LIFE">Whole Life</SelectItem>
-                              <SelectItem value="ENDOWMENT">Endowment</SelectItem>
+                              <SelectItem value="WHOLE_LIFE">
+                                Whole Life
+                              </SelectItem>
+                              <SelectItem value="ENDOWMENT">
+                                Endowment
+                              </SelectItem>
                               <SelectItem value="ULIP">ULIP</SelectItem>
                               <SelectItem value="PENSION">Pension</SelectItem>
                               <SelectItem value="HEALTH">Health</SelectItem>
@@ -515,37 +591,52 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="grid gap-2">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="">
                           <Label>Policy Term (Years)</Label>
                           <Input
                             type="number"
                             value={form.policyTerm}
-                            onChange={(e) => setForm((f) => ({ ...f, policyTerm: e.target.value }))}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                policyTerm: e.target.value,
+                              }))
+                            }
                             placeholder="20"
                           />
                         </div>
-                        <div className="grid gap-2">
+                        <div className="">
                           <Label>Premium Paying Term (Years)</Label>
                           <Input
                             type="number"
                             value={form.premiumPayingTerm}
-                            onChange={(e) => setForm((f) => ({ ...f, premiumPayingTerm: e.target.value }))}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                premiumPayingTerm: e.target.value,
+                              }))
+                            }
                             placeholder="15"
                           />
                         </div>
-                        <div className="grid gap-2">
+                        <div className="">
                           <Label>Status</Label>
                           <Select
                             value={form.status}
-                            onValueChange={(value) => setForm((f) => ({ ...f, status: value }))}
+                            onValueChange={(value) =>
+                              setForm((f) => ({ ...f, status: value }))
+                            }
                           >
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               {policyStatuses.map((status) => (
-                                <SelectItem key={status.value} value={status.value}>
+                                <SelectItem
+                                  key={status.value}
+                                  value={status.value}
+                                >
                                   {status.label}
                                 </SelectItem>
                               ))}
@@ -560,150 +651,204 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
 
               {/* Premium Calculation Tab */}
               {activeTab === "premium" && (
-                <div className="space-y-6">
+                <div className="space-y-6 min-w-[90vw]">
                   <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
                     <CardHeader className="bg-blue-100 dark:bg-blue-900/30">
-                      <CardTitle className="text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                      <CardTitle className="text-blue-800 dark:text-blue-200 flex items-center gap-2 text-base">
                         <Calculator className="h-5 w-5" />
                         Policy Premium Calculation
                       </CardTitle>
                     </CardHeader>
+
                     <CardContent className="pt-6 space-y-6">
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <div className="grid gap-2">
-                            <Label>Sum Assured *</Label>
-                            <Input
-                              type="number"
-                              value={form.sumAssured}
-                              onChange={(e) => setForm((f) => ({ ...f, sumAssured: e.target.value }))}
-                              placeholder="1000000"
-                              className="text-lg font-mono"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              {form.sumAssured && `₹ ${Number.parseFloat(form.sumAssured).toLocaleString("en-IN")}`}
-                            </p>
-                          </div>
-
-                          <div className="grid gap-2">
-                            <Label>Annual Premium</Label>
-                            <Input
-                              type="number"
-                              value={form.annualPremium}
-                              onChange={(e) => setForm((f) => ({ ...f, annualPremium: e.target.value }))}
-                              placeholder="50000"
-                              className="text-lg font-mono"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              {form.annualPremium &&
-                                `₹ ${Number.parseFloat(form.annualPremium).toLocaleString("en-IN")} per year`}
-                            </p>
-                          </div>
-
-                          <div className="grid gap-2">
-                            <Label>Premium Mode</Label>
-                            <Select
-                              value={form.premiumMode}
-                              onValueChange={(value) => setForm((f) => ({ ...f, premiumMode: value }))}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {premiumModes.map((mode) => (
-                                  <SelectItem key={mode.value} value={mode.value}>
-                                    {mode.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                            <h4 className="font-medium text-primary mb-3">Calculated Premium</h4>
-                            <div className="space-y-2">
-                              <div className="flex justify-between">
-                                <span className="text-sm">Installment Premium:</span>
-                                <span className="font-mono font-medium">
-                                  ₹{" "}
-                                  {form.installmentPremium
-                                    ? Number.parseFloat(form.installmentPremium).toLocaleString("en-IN")
-                                    : "0"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm">Frequency:</span>
-                                <span className="text-sm">
-                                  {premiumModes.find((m) => m.value === form.premiumMode)?.label}
-                                </span>
-                              </div>
-                              {form.annualPremium && form.policyTerm && (
-                                <div className="flex justify-between pt-2 border-t">
-                                  <span className="text-sm font-medium">Total Premiums:</span>
-                                  <span className="font-mono font-medium">
-                                    ₹{" "}
-                                    {(
-                                      Number.parseFloat(form.annualPremium) *
-                                      Number.parseInt(form.premiumPayingTerm || form.policyTerm || "1")
-                                    ).toLocaleString("en-IN")}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Riders Section */}
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <Label>Riders</Label>
-                              <Button type="button" size="sm" variant="outline" onClick={addRider}>
-                                <Plus className="h-4 w-4 mr-1" />
-                                Add Rider
-                              </Button>
-                            </div>
-
-                            {form.riders.length === 0 ? (
-                              <p className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-lg">
-                                No riders added
-                              </p>
-                            ) : (
-                              <div className="space-y-2">
-                                {form.riders.map((rider, index) => (
-                                  <div key={index} className="flex items-center gap-2 p-3 border rounded-lg">
-                                    <Input
-                                      placeholder="Rider name"
-                                      value={rider.name}
-                                      onChange={(e) => updateRider(index, "name", e.target.value)}
-                                      className="flex-1"
-                                    />
-                                    <Input
-                                      placeholder="Sum assured"
-                                      value={rider.sumAssured}
-                                      onChange={(e) => updateRider(index, "sumAssured", e.target.value)}
-                                      className="w-32"
-                                    />
-                                    <Input
-                                      placeholder="Premium"
-                                      value={rider.premium}
-                                      onChange={(e) => updateRider(index, "premium", e.target.value)}
-                                      className="w-32"
-                                    />
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => removeRider(index)}
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
+                      {/* Sum Assured */}
+                      <div className="grid gap-2">
+                        <Label>Sum Assured *</Label>
+                        <Input
+                          type="number"
+                          value={form.sumAssured}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              sumAssured: e.target.value,
+                            }))
+                          }
+                          placeholder="1000000"
+                          className="text-lg font-mono rounded-lg"
+                        />
+                        {form.sumAssured && (
+                          <p className="text-xs text-muted-foreground">
+                            ₹{" "}
+                            {Number.parseFloat(form.sumAssured).toLocaleString(
+                              "en-IN"
                             )}
-                          </div>
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Annual Premium */}
+                      <div className="grid gap-2">
+                        <Label>Annual Premium</Label>
+                        <Input
+                          type="number"
+                          value={form.annualPremium}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              annualPremium: e.target.value,
+                            }))
+                          }
+                          placeholder="50000"
+                          className="text-lg font-mono rounded-lg"
+                        />
+                        {form.annualPremium && (
+                          <p className="text-xs text-muted-foreground">
+                            ₹{" "}
+                            {Number.parseFloat(
+                              form.annualPremium
+                            ).toLocaleString("en-IN")}{" "}
+                            per year
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Premium Mode */}
+                      <div className="grid gap-2">
+                        <Label>Premium Mode</Label>
+                        <Select
+                          value={form.premiumMode}
+                          onValueChange={(value) =>
+                            setForm((f) => ({ ...f, premiumMode: value }))
+                          }
+                        >
+                          <SelectTrigger className="rounded-lg">
+                            <SelectValue placeholder="Select mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {premiumModes.map((mode) => (
+                              <SelectItem key={mode.value} value={mode.value}>
+                                {mode.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Calculated Premium */}
+                      <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-2">
+                        <h4 className="font-medium text-primary mb-2">
+                          Calculated Premium
+                        </h4>
+                        <div className="flex justify-between text-sm">
+                          <span>Installment Premium:</span>
+                          <span className="font-mono font-medium">
+                            ₹{" "}
+                            {form.installmentPremium
+                              ? Number.parseFloat(
+                                  form.installmentPremium
+                                ).toLocaleString("en-IN")
+                              : "0"}
+                          </span>
                         </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Frequency:</span>
+                          <span>
+                            {
+                              premiumModes.find(
+                                (m) => m.value === form.premiumMode
+                              )?.label
+                            }
+                          </span>
+                        </div>
+                        {form.annualPremium && form.policyTerm && (
+                          <div className="flex justify-between text-sm pt-2 border-t">
+                            <span className="font-medium">Total Premiums:</span>
+                            <span className="font-mono font-medium">
+                              ₹{" "}
+                              {(
+                                Number.parseFloat(form.annualPremium) *
+                                Number.parseInt(
+                                  form.premiumPayingTerm ||
+                                    form.policyTerm ||
+                                    "1"
+                                )
+                              ).toLocaleString("en-IN")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Riders Section */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label>Riders</Label>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={addRider}
+                          >
+                            <Plus className="h-4 w-4 mr-1" /> Add Rider
+                          </Button>
+                        </div>
+
+                        {form.riders.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-lg">
+                            No riders added
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            {form.riders.map((rider, index) => (
+                              <div
+                                key={index}
+                                className="p-3 border rounded-lg space-y-3 bg-background shadow-sm"
+                              >
+                                <Input
+                                  placeholder="Rider name"
+                                  value={rider.name}
+                                  onChange={(e) =>
+                                    updateRider(index, "name", e.target.value)
+                                  }
+                                  className="w-full rounded-lg"
+                                />
+                                <Input
+                                  placeholder="Sum assured"
+                                  value={rider.sumAssured}
+                                  onChange={(e) =>
+                                    updateRider(
+                                      index,
+                                      "sumAssured",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full rounded-lg"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    placeholder="Premium"
+                                    value={rider.premium}
+                                    onChange={(e) =>
+                                      updateRider(
+                                        index,
+                                        "premium",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="flex-1 rounded-lg"
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => removeRider(index)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -712,98 +857,127 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
 
               {/* Payment Details Tab */}
               {activeTab === "payment" && (
-                <div className="space-y-6">
+                <div className="space-y-6 min-w-[90vw]">
                   <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20">
                     <CardHeader className="bg-green-100 dark:bg-green-900/30">
-                      <CardTitle className="text-green-800 dark:text-green-200 flex items-center gap-2">
+                      <CardTitle className="text-green-800 dark:text-green-200 flex items-center gap-2 text-base">
                         <CreditCard className="h-5 w-5" />
                         Payment & Due Details
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-6 space-y-4">
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <div className="grid gap-2">
-                            <Label>Next Due Date</Label>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className={cn(
-                                    "justify-start text-left font-normal",
-                                    !form.nextDueDate && "text-muted-foreground",
-                                  )}
-                                >
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {form.nextDueDate ? format(form.nextDueDate, "dd/MM/yyyy") : "Select date"}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                  mode="single"
-                                  selected={form.nextDueDate || undefined}
-                                  onSelect={(date) => setForm((f) => ({ ...f, nextDueDate: date || null }))}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          </div>
 
-                          <div className="grid gap-2">
-                            <Label>Last Paid Date</Label>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className={cn(
-                                    "justify-start text-left font-normal",
-                                    !form.lastPaidDate && "text-muted-foreground",
-                                  )}
-                                >
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {form.lastPaidDate ? format(form.lastPaidDate, "dd/MM/yyyy") : "Select date"}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                  mode="single"
-                                  selected={form.lastPaidDate || undefined}
-                                  onSelect={(date) => setForm((f) => ({ ...f, lastPaidDate: date || null }))}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="grid gap-2">
-                            <Label>Receipt Number</Label>
-                            <Input
-                              value={form.receiptNumber}
-                              onChange={(e) => setForm((f) => ({ ...f, receiptNumber: e.target.value }))}
-                              placeholder="Receipt number"
+                    <CardContent className="pt-6 space-y-6">
+                      {/* Next Due Date */}
+                      <div className="grid gap-2">
+                        <Label className="text-sm">Next Due Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "justify-start text-left font-normal w-full rounded-lg",
+                                !form.nextDueDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {form.nextDueDate
+                                ? format(form.nextDueDate, "dd/MM/yyyy")
+                                : "Select date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="center">
+                            <Calendar
+                              mode="single"
+                              selected={form.nextDueDate || undefined}
+                              onSelect={(date) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  nextDueDate: date || null,
+                                }))
+                              }
+                              initialFocus
                             />
-                          </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
 
-                          <div className="grid gap-2">
-                            <Label>Cheque Number</Label>
-                            <Input
-                              value={form.chequeNumber}
-                              onChange={(e) => setForm((f) => ({ ...f, chequeNumber: e.target.value }))}
-                              placeholder="Cheque number"
+                      {/* Last Paid Date */}
+                      <div className="grid gap-2">
+                        <Label className="text-sm">Last Paid Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "justify-start text-left font-normal w-full rounded-lg",
+                                !form.lastPaidDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {form.lastPaidDate
+                                ? format(form.lastPaidDate, "dd/MM/yyyy")
+                                : "Select date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="center">
+                            <Calendar
+                              mode="single"
+                              selected={form.lastPaidDate || undefined}
+                              onSelect={(date) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  lastPaidDate: date || null,
+                                }))
+                              }
+                              initialFocus
                             />
-                          </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
 
-                          <div className="grid gap-2">
-                            <Label>Bank Name</Label>
-                            <Input
-                              value={form.bankName}
-                              onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
-                              placeholder="Bank name"
-                            />
-                          </div>
-                        </div>
+                      {/* Receipt Number */}
+                      <div className="grid gap-2">
+                        <Label className="text-sm">Receipt Number</Label>
+                        <Input
+                          value={form.receiptNumber}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              receiptNumber: e.target.value,
+                            }))
+                          }
+                          placeholder="Enter receipt number"
+                          className="rounded-lg"
+                        />
+                      </div>
+
+                      {/* Cheque Number */}
+                      <div className="grid gap-2">
+                        <Label className="text-sm">Cheque Number</Label>
+                        <Input
+                          value={form.chequeNumber}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              chequeNumber: e.target.value,
+                            }))
+                          }
+                          placeholder="Enter cheque number"
+                          className="rounded-lg"
+                        />
+                      </div>
+
+                      {/* Bank Name */}
+                      <div className="grid gap-2">
+                        <Label className="text-sm">Bank Name</Label>
+                        <Input
+                          value={form.bankName}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, bankName: e.target.value }))
+                          }
+                          placeholder="Enter bank name"
+                          className="rounded-lg"
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -812,83 +986,122 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
 
               {/* Advanced Options Tab */}
               {activeTab === "advanced" && (
-                <div className="space-y-6">
+                <div className="space-y-6 min-w-[90vw]">
                   <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20">
                     <CardHeader className="bg-purple-100 dark:bg-purple-900/30">
-                      <CardTitle className="text-purple-800 dark:text-purple-200 flex items-center gap-2">
+                      <CardTitle className="text-purple-800 dark:text-purple-200 flex items-center gap-2 text-base">
                         <Settings className="h-5 w-5" />
                         Advanced Options
                       </CardTitle>
                     </CardHeader>
+
                     <CardContent className="pt-6 space-y-6">
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <div className="grid gap-2">
-                            <Label>Nominee Details</Label>
-                            <Textarea
-                              value={form.nomineeDetails}
-                              onChange={(e) => setForm((f) => ({ ...f, nomineeDetails: e.target.value }))}
-                              placeholder="Nominee name, relationship, age..."
-                              rows={3}
-                            />
-                          </div>
-
-                          <div className="grid gap-2">
-                            <Label>Agent Code</Label>
-                            <Input
-                              value={form.agentCode}
-                              onChange={(e) => setForm((f) => ({ ...f, agentCode: e.target.value }))}
-                              placeholder="Agent code"
-                            />
-                          </div>
-
-                          <div className="grid gap-2">
-                            <Label>Branch Code</Label>
-                            <Input
-                              value={form.branchCode}
-                              onChange={(e) => setForm((f) => ({ ...f, branchCode: e.target.value }))}
-                              placeholder="Branch code"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="grid gap-2">
-                            <Label>Proposal Number</Label>
-                            <Input
-                              value={form.proposalNumber}
-                              onChange={(e) => setForm((f) => ({ ...f, proposalNumber: e.target.value }))}
-                              placeholder="Proposal number"
-                            />
-                          </div>
-
-                          <div className="grid gap-2">
-                            <Label>Servicing Details</Label>
-                            <Input
-                              value={form.servicing}
-                              onChange={(e) => setForm((f) => ({ ...f, servicing: e.target.value }))}
-                              placeholder="Servicing branch/agent"
-                            />
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              id="medical"
-                              checked={form.medicalRequired}
-                              onCheckedChange={(checked) => setForm((f) => ({ ...f, medicalRequired: checked }))}
-                            />
-                            <Label htmlFor="medical">Medical Required</Label>
-                          </div>
-                        </div>
+                      {/* Nominee Details */}
+                      <div className="grid gap-2">
+                        <Label>Nominee Details</Label>
+                        <Textarea
+                          value={form.nomineeDetails}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              nomineeDetails: e.target.value,
+                            }))
+                          }
+                          placeholder="Nominee name, relationship, age..."
+                          rows={3}
+                          className="rounded-lg"
+                        />
                       </div>
 
+                      {/* Agent Code */}
+                      <div className="grid gap-2">
+                        <Label>Agent Code</Label>
+                        <Input
+                          value={form.agentCode}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              agentCode: e.target.value,
+                            }))
+                          }
+                          placeholder="Agent code"
+                          className="rounded-lg"
+                        />
+                      </div>
+
+                      {/* Branch Code */}
+                      <div className="grid gap-2">
+                        <Label>Branch Code</Label>
+                        <Input
+                          value={form.branchCode}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              branchCode: e.target.value,
+                            }))
+                          }
+                          placeholder="Branch code"
+                          className="rounded-lg"
+                        />
+                      </div>
+
+                      {/* Proposal Number */}
+                      <div className="grid gap-2">
+                        <Label>Proposal Number</Label>
+                        <Input
+                          value={form.proposalNumber}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              proposalNumber: e.target.value,
+                            }))
+                          }
+                          placeholder="Proposal number"
+                          className="rounded-lg"
+                        />
+                      </div>
+
+                      {/* Servicing Details */}
+                      <div className="grid gap-2">
+                        <Label>Servicing Details</Label>
+                        <Input
+                          value={form.servicing}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              servicing: e.target.value,
+                            }))
+                          }
+                          placeholder="Servicing branch/agent"
+                          className="rounded-lg"
+                        />
+                      </div>
+
+                      {/* Medical Required */}
+                      <div className="flex items-center gap-3 border rounded-lg p-3 bg-background">
+                        <Switch
+                          id="medical"
+                          checked={form.medicalRequired}
+                          onCheckedChange={(checked) =>
+                            setForm((f) => ({ ...f, medicalRequired: checked }))
+                          }
+                        />
+                        <Label htmlFor="medical" className="text-sm">
+                          Medical Required
+                        </Label>
+                      </div>
+
+                      {/* Remarks */}
                       <div className="grid gap-2">
                         <Label>Remarks</Label>
                         <Textarea
                           value={form.remarks}
-                          onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, remarks: e.target.value }))
+                          }
                           placeholder="Additional notes, special conditions, or remarks..."
                           rows={4}
+                          className="rounded-lg"
                         />
                       </div>
                     </CardContent>
@@ -908,7 +1121,11 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                  >
                     Cancel
                   </Button>
 
@@ -917,17 +1134,29 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
                       type="button"
                       disabled={activeTab === "basic" && !form.clientId}
                       onClick={() => {
-                        const currentIndex = tabs.findIndex((t) => t.id === activeTab)
+                        const currentIndex = tabs.findIndex(
+                          (t) => t.id === activeTab
+                        );
                         if (currentIndex < tabs.length - 1) {
-                          setActiveTab(tabs[currentIndex + 1].id)
+                          setActiveTab(tabs[currentIndex + 1].id);
                         }
                       }}
                     >
-                      {activeTab === "basic" && !form.clientId ? "Select Client First" : "Next Step"}
+                      {activeTab === "basic" && !form.clientId
+                        ? "Select Client First"
+                        : "Next Step"}
                     </Button>
                   ) : (
-                    <Button type="submit" disabled={submitting || !form.clientId} className="bg-primary">
-                      {submitting ? "Saving..." : policy ? "Update Policy" : "Create Policy"}
+                    <Button
+                      type="submit"
+                      disabled={submitting || !form.clientId}
+                      className="bg-primary"
+                    >
+                      {submitting
+                        ? "Saving..."
+                        : policy
+                          ? "Update Policy"
+                          : "Create Policy"}
                     </Button>
                   )}
                 </div>
@@ -937,5 +1166,5 @@ export function EnhancedPolicyForm({ open, onOpenChange, client, policy, onSucce
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

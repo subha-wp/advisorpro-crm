@@ -1,4 +1,5 @@
-import { PoliciesTable } from "@/components/policies/policies-table";
+
+import { PoliciesTableMobile } from "@/components/policies/policies-table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Building2, TrendingUp, Users, FileText } from "lucide-react";
 
@@ -11,22 +12,10 @@ export default function PoliciesPage() {
             <Building2 className="h-6 w-6 text-primary" />
             Insurance Policies
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Comprehensive policy management with automated calculations and
-            professional tracking
-          </p>
+
         </div>
       </header>
-
-      <Alert className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 ">
-        <TrendingUp className="h-4 w-4" />
-        <AlertDescription className="text-white">
-          <strong>Professional Policy Management:</strong> Track premiums,
-          calculate due dates automatically, manage riders, and maintain
-          comprehensive policy records with integrated client relationships.
-        </AlertDescription>
-      </Alert>
-      <PoliciesTable />
+      <PoliciesTableMobile />
     </section>
   );
 }

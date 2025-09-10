@@ -1,3 +1,4 @@
+// app\api\clients\route.ts
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { z } from "zod"

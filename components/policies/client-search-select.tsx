@@ -1,15 +1,12 @@
+
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Check, ChevronsUpDown, Search, User, Users, CreditCard, Building2 } from "lucide-react"
+import { Check, ChevronsUpDown, Search, Users, CreditCard } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
 interface Client {
@@ -18,7 +15,6 @@ interface Client {
   mobile?: string
   email?: string
   panNo?: string
-  aadhaarNo?: string
   clientGroup?: {
     id: string
     name: string
@@ -27,9 +23,10 @@ interface Client {
       name: string
       relationshipToHead?: string
       panNo?: string
+      mobile?: string
+      email?: string
     }>
   }
-  relationshipToHead?: string
 }
 
 interface ClientSearchSelectProps {
@@ -38,334 +35,331 @@ interface ClientSearchSelectProps {
   className?: string
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = async (url: string) => {
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.statusText}`)
+  }
+  return response.json()
+}
 
 export function ClientSearchSelect({ selectedClientId, onClientSelect, className }: ClientSearchSelectProps) {
+  const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [clients, setClients] = useState<Client[]>([])
-  const [groups, setGroups] = useState<any[]>([])
+  const [results, setResults] = useState<Client[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
-  // Search clients and groups
-  useEffect(() => {
-    const searchClients = async () => {
-      if (searchQuery.length < 2) {
-        setClients([])
-        setGroups([])
-        return
-      }
-
-      setLoading(true)
-      try {
-        // Search clients by name, PAN, mobile
-        const clientsRes = await fetch(`/api/clients?q=${encodeURIComponent(searchQuery)}&pageSize=20`)
-        const clientsData = await clientsRes.json()
-        
-        // Search groups by name
-        const groupsRes = await fetch(`/api/client-groups?q=${encodeURIComponent(searchQuery)}&pageSize=10`)
-        const groupsData = await groupsRes.json()
-        
-        setClients(clientsData.items || [])
-        setGroups(groupsData.items || [])
-      } catch (error) {
-        console.error("Search error:", error)
-      } finally {
-        setLoading(false)
-      }
+  // Fetch search results
+  const search = useCallback(async () => {
+    if (searchQuery.length < 2) {
+      setResults([])
+      return
     }
 
-    const debounceTimer = setTimeout(searchClients, 300)
+    setLoading(true)
+    try {
+      const [clientsData, groupsData] = await Promise.all([
+        fetcher(`/api/clients?q=${encodeURIComponent(searchQuery)}&pageSize=20`),
+        fetcher(`/api/client-groups?q=${encodeURIComponent(searchQuery)}&pageSize=10`),
+      ])
+
+      // Combine clients and group members
+      const clients = (clientsData.items || []).map((client: any) => ({
+        id: client.id,
+        name: client.name,
+        mobile: client.mobile,
+        email: client.email,
+        panNo: client.panNo,
+        clientGroup: client.clientGroup
+          ? {
+              id: client.clientGroup.id,
+              name: client.clientGroup.name,
+              clients: client.clientGroup.clients || [],
+            }
+          : undefined,
+      }))
+
+      const groupClients = (groupsData.items || []).flatMap((group: any) =>
+        group.clients.map((member: any) => ({
+          id: member.id,
+          name: member.name,
+          mobile: member.mobile,
+          email: member.email,
+          panNo: member.panNo,
+          clientGroup: {
+            id: group.id,
+            name: group.name,
+            clients: group.clients || [],
+          },
+        }))
+      )
+
+      // Merge and deduplicate
+      const uniqueResults = [
+        ...clients,
+        ...groupClients.filter((gc: Client) => !clients.some((c: Client) => c.id === gc.id)),
+      ]
+
+      console.log("Search results:", uniqueResults) // Debug log
+      setResults(uniqueResults)
+    } catch (error) {
+      console.error("Search error:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch search results. Please try again.",
+        variant: "destructive",
+      })
+      setResults([])
+    } finally {
+      setLoading(false)
+    }
+  }, [searchQuery, toast])
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      search()
+    }, 300)
     return () => clearTimeout(debounceTimer)
-  }, [searchQuery])
+  }, [search])
 
   // Load selected client details
   useEffect(() => {
     if (selectedClientId) {
       const loadClient = async () => {
+        setLoading(true)
         try {
-          const res = await fetch(`/api/clients/${selectedClientId}`)
-          if (res.ok) {
-            const data = await res.json()
-            setSelectedClient(data.item)
-          }
+          const data = await fetcher(`/api/clients/${selectedClientId}`)
+          setSelectedClient({
+            id: data.item.id,
+            name: data.item.name,
+            mobile: data.item.mobile,
+            email: data.item.email,
+            panNo: data.item.panNo,
+            clientGroup: data.item.clientGroup
+              ? {
+                  id: data.item.clientGroup.id,
+                  name: data.item.clientGroup.name,
+                  clients: data.item.clientGroup.clients || [],
+                }
+              : undefined,
+          })
         } catch (error) {
           console.error("Failed to load client:", error)
+          toast({
+            title: "Error",
+            description: "Failed to load client details.",
+            variant: "destructive",
+          })
+          setSelectedClient(null)
+        } finally {
+          setLoading(false)
         }
       }
       loadClient()
     } else {
       setSelectedClient(null)
     }
-  }, [selectedClientId])
+  }, [selectedClientId, toast])
 
-  function handleClientSelect(client: Client) {
+  const handleClientSelect = useCallback((client: Client) => {
     setSelectedClient(client)
     onClientSelect(client)
     setOpen(false)
     setSearchQuery("")
-  }
+  }, [onClientSelect])
 
-  function getUserInitials(name: string) {
+  const getUserInitials = useCallback((name: string) => {
     return name
       .split(" ")
-      .map(n => n[0])
+      .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2)
-  }
+  }, [])
 
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="grid gap-2">
-        <Label>Policy Holder *</Label>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              className="justify-between h-auto min-h-[2.5rem] p-3"
-            >
-              {selectedClient ? (
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                      {getUserInitials(selectedClient.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="text-left">
-                    <div className="font-medium">{selectedClient.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {selectedClient.mobile || selectedClient.email || "No contact info"}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Search className="h-4 w-4" />
-                  Search by name, PAN, or group...
-                </div>
-              )}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[400px] p-0" align="start">
-            <Command>
-              <CommandInput 
-                placeholder="Search clients by name, PAN, mobile, or group name..." 
-                value={searchQuery}
-                onValueChange={setSearchQuery}
-              />
-              <CommandList className="max-h-[300px]">
-                <CommandEmpty>
-                  {loading ? "Searching..." : searchQuery.length < 2 ? "Type at least 2 characters to search" : "No clients found"}
-                </CommandEmpty>
-                
-                {/* Individual Clients */}
-                {clients.length > 0 && (
-                  <CommandGroup heading="Individual Clients">
-                    {clients.map((client) => (
-                      <CommandItem
-                        key={client.id}
-                        value={client.id}
-                        onSelect={() => handleClientSelect(client)}
-                        className="flex items-center gap-3 p-3"
-                      >
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                            {getUserInitials(client.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{client.name}</span>
-                            {client.clientGroup && (
-                              <Badge variant="secondary" className="text-xs">
-                                <Users className="h-3 w-3 mr-1" />
-                                {client.clientGroup.name}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {[
-                              client.mobile,
-                              client.panNo && `PAN: ${client.panNo}`,
-                              client.relationshipToHead && `${client.relationshipToHead}`
-                            ].filter(Boolean).join(" • ")}
-                          </div>
-                        </div>
-                        <Check
-                          className={cn(
-                            "ml-auto h-4 w-4",
-                            selectedClientId === client.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-
-                {/* Family Groups */}
-                {groups.length > 0 && (
-                  <CommandGroup heading="Family Groups">
-                    {groups.map((group) => (
-                      <div key={group.id} className="p-2">
-                        <div className="flex items-center gap-2 p-2 text-sm font-medium text-muted-foreground">
-                          <Users className="h-4 w-4" />
-                          {group.name} ({group.clients.length} members)
-                        </div>
-                        <div className="ml-6 space-y-1">
-                          {group.clients.map((member: any) => (
-                            <CommandItem
-                              key={member.id}
-                              value={member.id}
-                              onSelect={() => {
-                                // Find full client data
-                                const fullClient = clients.find(c => c.id === member.id) || {
-                                  ...member,
-                                  clientGroup: group
-                                }
-                                handleClientSelect(fullClient as Client)
-                              }}
-                              className="flex items-center gap-3 p-2 ml-2"
-                            >
-                              <Avatar className="h-6 w-6">
-                                <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
-                                  {getUserInitials(member.name)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm">{member.name}</span>
-                                  {member.relationshipToHead && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {member.relationshipToHead}
-                                    </Badge>
-                                  )}
-                                </div>
-                                {member.panNo && (
-                                  <div className="text-xs text-muted-foreground">
-                                    PAN: {member.panNo}
-                                  </div>
-                                )}
-                              </div>
-                              <Check
-                                className={cn(
-                                  "ml-auto h-4 w-4",
-                                  selectedClientId === member.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                            </CommandItem>
-                          ))}
-                        </div>
+      <label className="text-sm font-medium">Policy Holder *</label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full h-10 px-3 justify-between"
+            disabled={loading}
+          >
+            {selectedClient ? (
+              <div className="flex items-center gap-2 truncate">
+                <Avatar className="h-6 w-6">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                    {getUserInitials(selectedClient.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="truncate">{selectedClient.name}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Search className="h-4 w-4" />
+                Search clients...
+              </div>
+            )}
+            <ChevronsUpDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[350px] p-2">
+          <input
+            type="text"
+            placeholder="Search by name, PAN, or mobile..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <div className="mt-2 max-h-[300px] overflow-y-auto border rounded-md">
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+                Searching...
+              </div>
+            ) : searchQuery.length < 2 ? (
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                Type at least 2 characters to search
+              </div>
+            ) : results.length === 0 ? (
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                No clients found
+              </div>
+            ) : (
+              <ul>
+                {results.map((client) => (
+                  <li
+                    key={client.id}
+                    onClick={() => handleClientSelect(client)}
+                    className="flex items-center gap-2 p-2 hover:bg-primary/5 cursor-pointer"
+                  >
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        {getUserInitials(client.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium truncate">{client.name}</span>
+                        {client.clientGroup && (
+                          <span className="text-xs text-muted-foreground">
+                            ({client.clientGroup.name})
+                          </span>
+                        )}
                       </div>
-                    ))}
-                  </CommandGroup>
-                )}
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {[
+                          client.mobile,
+                          client.panNo && `PAN: ${client.panNo}`,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ")}
+                      </div>
+                    </div>
+                    <Check
+                      className={cn(
+                        "h-4 w-4",
+                        selectedClientId === client.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {/* Selected Client Details */}
-      {selectedClient && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="pt-4">
-            <div className="flex items-start gap-4">
-              <Avatar className="h-12 w-12">
-                <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                  {getUserInitials(selectedClient.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-semibold">{selectedClient.name}</h4>
-                  {selectedClient.clientGroup && (
-                    <Badge variant="secondary" className="text-xs">
-                      <Users className="h-3 w-3 mr-1" />
-                      {selectedClient.clientGroup.name}
-                    </Badge>
-                  )}
-                  {selectedClient.relationshipToHead && (
-                    <Badge variant="outline" className="text-xs">
-                      {selectedClient.relationshipToHead}
-                    </Badge>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  {selectedClient.mobile && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Mobile:</span>
-                      <span className="font-mono">{selectedClient.mobile}</span>
-                    </div>
-                  )}
-                  {selectedClient.email && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Email:</span>
-                      <span className="font-mono text-xs">{selectedClient.email}</span>
-                    </div>
-                  )}
-                  {selectedClient.panNo && (
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-muted-foreground">PAN:</span>
-                      <span className="font-mono">{selectedClient.panNo}</span>
-                    </div>
-                  )}
-                  {selectedClient.aadhaarNo && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Aadhaar:</span>
-                      <span className="font-mono">{selectedClient.aadhaarNo}</span>
-                    </div>
-                  )}
-                </div>
+     {selectedClient && (
+  <div className="bg-card rounded-xl border border-primary/10 shadow-sm p-4 space-y-3">
+    {/* Top section: avatar + name */}
+    <div className="flex items-center gap-3">
+      <Avatar className="h-12 w-12 shrink-0">
+        <AvatarFallback className="bg-primary/20 text-primary font-semibold text-base">
+          {getUserInitials(selectedClient.name)}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1">
+        <h4 className="font-semibold text-base">{selectedClient.name}</h4>
+        {selectedClient.clientGroup && (
+          <div className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full inline-flex items-center gap-1 mt-1">
+            <Users className="h-3 w-3" />
+            {selectedClient.clientGroup.name}
+          </div>
+        )}
+      </div>
+    </div>
 
-                {/* Family Group Members */}
-                {selectedClient.clientGroup && selectedClient.clientGroup.clients.length > 1 && (
-                  <div className="mt-3 pt-3 border-t">
-                    <div className="text-xs text-muted-foreground mb-2">
-                      Other family members ({selectedClient.clientGroup.clients.length - 1}):
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {selectedClient.clientGroup.clients
-                        .filter(member => member.id !== selectedClient.id)
-                        .slice(0, 3)
-                        .map((member) => (
-                          <Button
-                            key={member.id}
-                            variant="outline"
-                            size="sm"
-                            className="h-6 text-xs"
-                            onClick={() => {
-                              // Switch to family member
-                              const memberClient = {
-                                ...member,
-                                clientGroup: selectedClient.clientGroup
-                              } as Client
-                              handleClientSelect(memberClient)
-                            }}
-                          >
-                            {member.name}
-                            {member.relationshipToHead && ` (${member.relationshipToHead})`}
-                          </Button>
-                        ))}
-                      {selectedClient.clientGroup.clients.length > 4 && (
-                        <span className="text-xs text-muted-foreground self-center">
-                          +{selectedClient.clientGroup.clients.length - 4} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    {/* Contact info */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+      {selectedClient.mobile && (
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">📱</span>
+          <span className="font-mono">{selectedClient.mobile}</span>
+        </div>
       )}
+      {selectedClient.email && (
+        <div className="flex items-center gap-2 overflow-hidden">
+          <span className="text-muted-foreground">✉️</span>
+          <span className="truncate font-mono text-xs">{selectedClient.email}</span>
+        </div>
+      )}
+      {selectedClient.panNo && (
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-3 w-3 text-muted-foreground" />
+          <span className="text-muted-foreground">PAN:</span>
+          <span className="font-mono">{selectedClient.panNo}</span>
+        </div>
+      )}
+    </div>
+
+    {/* Family members */}
+    {selectedClient.clientGroup && selectedClient.clientGroup.clients.length > 1 && (
+      <div className="pt-3 border-t">
+        <div className="text-xs text-muted-foreground mb-2">
+          Other family members ({selectedClient.clientGroup.clients.length - 1}):
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {selectedClient.clientGroup.clients
+            .filter((member) => member.id !== selectedClient.id)
+            .map((member) => (
+              <Button
+                key={member.id}
+                variant="outline"
+                size="sm"
+                className="px-3 py-1 rounded-full text-xs whitespace-nowrap"
+                onClick={() => {
+                  const memberClient = {
+                    id: member.id,
+                    name: member.name,
+                    mobile: member.mobile,
+                    email: member.email,
+                    panNo: member.panNo,
+                    clientGroup: selectedClient.clientGroup,
+                  } as Client
+                  handleClientSelect(memberClient)
+                }}
+              >
+                {member.name}
+                {member.relationshipToHead && ` (${member.relationshipToHead})`}
+              </Button>
+            ))}
+          {selectedClient.clientGroup.clients.length > 4 && (
+            <span className="text-xs text-muted-foreground self-center">
+              +{selectedClient.clientGroup.clients.length - 4} more
+            </span>
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
     </div>
   )
 }
