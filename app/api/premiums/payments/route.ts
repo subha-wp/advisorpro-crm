@@ -6,6 +6,9 @@ import { getPrisma } from "@/lib/db"
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireRole(ROLES.STAFF)
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
       const prisma = await getPrisma()
     const body = await request.json()
 
@@ -62,7 +65,7 @@ export async function POST(request: NextRequest) {
       // Create payment record
       const paymentRecord = await tx.premiumPayment.create({
         data: {
-          workspaceId: policy.client.workspaceId,
+          workspaceId: session.ws,
           policyId,
           scheduleId,
           paymentDate: new Date(paymentDate),
@@ -75,7 +78,7 @@ export async function POST(request: NextRequest) {
           lateFee: Number.parseFloat(lateFee) || 0,
           discount: Number.parseFloat(discount) || 0,
           remarks,
-          processedByUserId: "user_1", // TODO: Get from auth context
+          processedByUserId: session.sub,
         },
       })
 
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
 
       // Update premium schedule status if scheduleId provided
       let scheduleUpdate = null
-      if (scheduleId) {
+      if (scheduleId && !scheduleId.startsWith('policy_')) {
         scheduleUpdate = await tx.premiumSchedule.update({
           where: { id: scheduleId },
           data: {
@@ -101,78 +104,48 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Create audit logs
-      const auditLogs = await Promise.all([
-        tx.auditLog.create({
-          data: createPremiumAuditLog("PREMIUM_PAYMENT_RECORDED", {
-            workspaceId: policy.client.workspaceId,
-            policyId,
-            paymentId: paymentRecord.id,
-            amount: totalPaid,
-            paymentMode,
-            isFullPayment,
-          }),
-        }),
-        ...(isFullPayment
-          ? [
-              tx.auditLog.create({
-                data: createPremiumAuditLog("POLICY_DUE_DATE_UPDATED", {
-                  workspaceId: policy.client.workspaceId,
-                  policyId,
-                  previousDueDate: currentDueDate.toISOString(),
-                  newDueDate: policyUpdates.nextDueDate.toISOString(),
-                  premiumMode,
-                  paymentId: paymentRecord.id,
-                }),
-              }),
-            ]
-          : []),
-      ])
-
-      // Create reminder schedule for next premium if full payment
-      let reminderSchedule = null
-      if (isFullPayment) {
-        const nextDueDate = policyUpdates.nextDueDate
-        const reminders = [
-          {
-            reminderType: "ADVANCE_30" as const,
-            scheduledDate: new Date(nextDueDate.getTime() - 30 * 24 * 60 * 60 * 1000),
-            workspaceId: policy.client.workspaceId,
-            policyId,
-            status: "PENDING" as const,
-          },
-          {
-            reminderType: "ADVANCE_7" as const,
-            scheduledDate: new Date(nextDueDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-            workspaceId: policy.client.workspaceId,
-            policyId,
-            status: "PENDING" as const,
-          },
-          {
-            reminderType: "DUE_DATE" as const,
-            scheduledDate: nextDueDate,
-            workspaceId: policy.client.workspaceId,
-            policyId,
-            status: "PENDING" as const,
-          },
-        ]
-
-        await tx.premiumReminder.createMany({
-          data: reminders,
-        })
-
-        reminderSchedule = {
-          policyId,
-          nextDueDate: nextDueDate.toISOString(),
-          reminders: reminders.length,
+      // Create audit log for payment
+      await tx.auditLog.create({
+        data: {
+          workspaceId: session.ws,
+          userId: session.sub,
+          action: "CREATE",
+          entity: "PREMIUM_PAYMENT",
+          entityId: paymentRecord.id,
+          diffJson: {
+            after: {
+              policyId,
+              amount: totalPaid,
+              paymentMode,
+              isFullPayment,
+              receiptNumber,
+            }
+          }
         }
+      })
+
+      // Create audit log for policy update if full payment
+      if (isFullPayment) {
+        await tx.auditLog.create({
+          data: {
+            workspaceId: session.ws,
+            userId: session.sub,
+            action: "UPDATE",
+            entity: "POLICY",
+            entityId: policyId,
+            diffJson: {
+              before: { nextDueDate: currentDueDate.toISOString() },
+              after: { nextDueDate: policyUpdates.nextDueDate.toISOString() }
+            }
+          }
+        })
       }
+
+      // Note: Premium reminders can be implemented later if needed
 
       return {
         paymentRecord,
         scheduleUpdate,
-        auditLogs,
-        reminderSchedule,
       }
     })
 
@@ -184,7 +157,6 @@ export async function POST(request: NextRequest) {
         lastPaidDate: policyUpdates.lastPaidDate.toISOString(),
       },
       scheduleUpdate: result.scheduleUpdate,
-      reminderSchedule: result.reminderSchedule,
       message: isFullPayment
         ? `Premium payment recorded successfully. Next due date updated to ${policyUpdates.nextDueDate.toLocaleDateString()}`
         : "Partial premium payment recorded successfully. Due date remains unchanged.",

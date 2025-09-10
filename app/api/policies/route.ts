@@ -115,6 +115,32 @@ export async function POST(req: Request) {
       status: d.status,
       metadata: d.metadata,
     },
+    include: {
+      client: {
+        select: { id: true, name: true, workspaceId: true }
+      }
+    }
   })
+
+  // Create audit log
+  await prisma.auditLog.create({
+    data: {
+      workspaceId: session.ws,
+      userId: session.sub,
+      action: "CREATE",
+      entity: "POLICY",
+      entityId: item.id,
+      diffJson: {
+        after: {
+          clientId: item.clientId,
+          policyNumber: item.policyNumber,
+          insurer: item.insurer,
+          premiumAmount: item.premiumAmount,
+          nextDueDate: item.nextDueDate?.toISOString(),
+        }
+      }
+    }
+  })
+
   return NextResponse.json({ item })
 }

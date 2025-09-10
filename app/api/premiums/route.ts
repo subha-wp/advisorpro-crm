@@ -1,101 +1,128 @@
 import { getPrisma } from "@/lib/db"
 import { type NextRequest, NextResponse } from "next/server"
-
+import { requireRole } from "@/lib/session"
+import { ROLES } from "@/lib/auth/roles"
 
 export async function GET(request: NextRequest) {
   try {
-      const prisma = await getPrisma()
+    const session = await requireRole(ROLES.ANY)
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const prisma = await getPrisma()
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status")
     const search = searchParams.get("search")
     const page = Number.parseInt(searchParams.get("page") || "1")
     const limit = Number.parseInt(searchParams.get("limit") || "10")
+    const startDate = searchParams.get("startDate")
+    const endDate = searchParams.get("endDate")
     const offset = (page - 1) * limit
 
     const currentDate = new Date()
 
-    // Build where conditions based on filters
+    // Build where conditions for policies with nextDueDate
     const whereConditions: any = {
-      policy: {
-        status: "ACTIVE",
-      },
+      status: "ACTIVE",
+      nextDueDate: { not: null },
+      client: {
+        workspaceId: session.ws
+      }
+    }
+
+    // Add date range filter if provided
+    if (startDate && endDate) {
+      whereConditions.nextDueDate = {
+        ...whereConditions.nextDueDate,
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      }
+    } else if (startDate) {
+      whereConditions.nextDueDate = {
+        ...whereConditions.nextDueDate,
+        gte: new Date(startDate),
+      }
+    } else if (endDate) {
+      whereConditions.nextDueDate = {
+        ...whereConditions.nextDueDate,
+        lte: new Date(endDate),
+      }
     }
 
     // Add search filter
     if (search) {
       whereConditions.OR = [
         {
-          policy: {
-            policyNumber: {
+          policyNumber: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          client: {
+            name: {
               contains: search,
               mode: "insensitive",
             },
           },
         },
         {
-          policy: {
-            client: {
-              name: {
-                contains: search,
-                mode: "insensitive",
-              },
-            },
-          },
-        },
-        {
-          policy: {
-            insurer: {
-              contains: search,
-              mode: "insensitive",
-            },
+          insurer: {
+            contains: search,
+            mode: "insensitive",
           },
         },
       ]
     }
 
     // Add status filter
-    if (status) {
+    if (status && status !== "ALL") {
       switch (status) {
         case "UPCOMING":
-          whereConditions.dueDate = {
+          whereConditions.nextDueDate = {
+            ...whereConditions.nextDueDate,
             gte: currentDate,
             lte: new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000), // Next 30 days
           }
-          whereConditions.status = "PENDING"
           break
         case "OVERDUE":
-          whereConditions.dueDate = {
+          whereConditions.nextDueDate = {
+            ...whereConditions.nextDueDate,
             lt: currentDate,
           }
-          whereConditions.status = "PENDING"
           break
         case "PAID":
-          whereConditions.status = "PAID"
+          // For paid status, we need to check if there's a recent payment
+          whereConditions.premiumPayments = {
+            some: {
+              paymentDate: {
+                gte: new Date(currentDate.getTime() - 90 * 24 * 60 * 60 * 1000), // Last 90 days
+              }
+            }
+          }
           break
         case "UNPAID":
-          whereConditions.status = "PENDING"
+          whereConditions.nextDueDate = {
+            ...whereConditions.nextDueDate,
+            gte: new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000), // More than 30 days away
+          }
           break
       }
     }
 
-    // Fetch premium schedules with related data
-    const [premiumSchedules, totalCount] = await Promise.all([
-      prisma.premiumSchedule.findMany({
+    // Fetch policies with premium information
+    const [policies, totalCount] = await Promise.all([
+      prisma.policy.findMany({
         where: whereConditions,
         include: {
-          policy: {
-            include: {
-              client: {
-                select: {
-                  id: true,
-                  name: true,
-                  mobile: true,
-                  email: true,
-                },
-              },
+          client: {
+            select: {
+              id: true,
+              name: true,
+              mobile: true,
+              email: true,
             },
           },
-          payments: {
+          premiumPayments: {
             orderBy: {
               paymentDate: "desc",
             },
@@ -103,54 +130,55 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: {
-          dueDate: "asc",
+          nextDueDate: "asc",
         },
         skip: offset,
         take: limit,
       }),
-      prisma.premiumSchedule.count({
+      prisma.policy.count({
         where: whereConditions,
       }),
     ])
 
     // Transform data to match frontend expectations
-    const premiums = premiumSchedules.map((schedule) => {
-      const latestPayment = schedule.payments[0]
-      const gracePeriodEnd = new Date(schedule.dueDate)
+    const premiums = policies.map((policy) => {
+      const latestPayment = policy.premiumPayments[0]
+      const dueDate = new Date(policy.nextDueDate!)
+      const gracePeriodEnd = new Date(dueDate)
       gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 30) // 30 days grace period
 
-      let status: string
-      if (schedule.status === "PAID") {
-        status = "PAID"
-      } else if (schedule.dueDate < currentDate) {
-        status = "OVERDUE"
-      } else if (schedule.dueDate <= new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000)) {
-        status = "UPCOMING"
+      let premiumStatus: string
+      if (latestPayment && latestPayment.paymentDate >= dueDate) {
+        premiumStatus = "PAID"
+      } else if (dueDate < currentDate) {
+        premiumStatus = "OVERDUE"
+      } else if (dueDate <= new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+        premiumStatus = "UPCOMING"
       } else {
-        status = "UNPAID"
+        premiumStatus = "UNPAID"
       }
 
       return {
-        id: schedule.id,
+        id: policy.id,
         client: {
-          id: schedule.policy.client.id,
-          name: schedule.policy.client.name,
-          mobile: schedule.policy.client.mobile,
-          email: schedule.policy.client.email,
+          id: policy.client.id,
+          name: policy.client.name,
+          mobile: policy.client.mobile,
+          email: policy.client.email,
         },
         policy: {
-          id: schedule.policy.id,
-          policyNumber: schedule.policy.policyNumber,
-          insurer: schedule.policy.insurer,
-          planName: schedule.policy.planName,
-          premiumMode: schedule.policy.premiumMode,
-          status: schedule.policy.status,
+          id: policy.id,
+          policyNumber: policy.policyNumber,
+          insurer: policy.insurer,
+          planName: policy.planName,
+          premiumMode: policy.premiumMode,
+          status: policy.status,
         },
-        scheduleId: schedule.id,
-        installmentNumber: schedule.installmentNumber,
-        dueDate: schedule.dueDate.toISOString(),
-        premiumAmount: schedule.premiumAmount,
-        status,
+        scheduleId: `policy_${policy.id}`, // Generate a schedule ID for compatibility
+        installmentNumber: 1,
+        dueDate: policy.nextDueDate!.toISOString(),
+        premiumAmount: policy.premiumAmount || 0,
+        status: premiumStatus,
         gracePeriodEnd: gracePeriodEnd.toISOString(),
         ...(latestPayment && {
           paidAmount: latestPayment.amountPaid,
@@ -161,24 +189,23 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Calculate summary statistics
-    const summaryStats = await prisma.premiumSchedule.groupBy({
-      by: ["status"],
+    // Calculate summary statistics for all active policies in workspace
+    const allActivePolicies = await prisma.policy.findMany({
       where: {
-        policy: {
-          status: "ACTIVE",
-        },
+        status: "ACTIVE",
+        nextDueDate: { not: null },
+        client: { workspaceId: session.ws }
       },
-      _count: {
-        id: true,
-      },
-      _sum: {
-        premiumAmount: true,
-      },
+      include: {
+        premiumPayments: {
+          orderBy: { paymentDate: "desc" },
+          take: 1,
+        }
+      }
     })
 
     const summary = {
-      total: totalCount,
+      total: allActivePolicies.length,
       upcoming: 0,
       overdue: 0,
       paid: 0,
@@ -187,34 +214,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Process summary statistics
-    for (const stat of summaryStats) {
-      summary.totalAmount += Number(stat._sum.premiumAmount || 0)
+    for (const policy of allActivePolicies) {
+      const dueDate = new Date(policy.nextDueDate!)
+      const latestPayment = policy.premiumPayments[0]
+      const amount = Number(policy.premiumAmount || 0)
+      
+      summary.totalAmount += amount
 
-      if (stat.status === "PAID") {
-        summary.paid += stat._count.id
+      if (latestPayment && latestPayment.paymentDate >= dueDate) {
+        summary.paid++
+      } else if (dueDate < currentDate) {
+        summary.overdue++
+      } else if (dueDate <= new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+        summary.upcoming++
       } else {
-        // For pending schedules, we need to check dates
-        const pendingSchedules = await prisma.premiumSchedule.findMany({
-          where: {
-            status: "PENDING",
-            policy: {
-              status: "ACTIVE",
-            },
-          },
-          select: {
-            dueDate: true,
-          },
-        })
-
-        for (const schedule of pendingSchedules) {
-          if (schedule.dueDate < currentDate) {
-            summary.overdue++
-          } else if (schedule.dueDate <= new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000)) {
-            summary.upcoming++
-          } else {
-            summary.unpaid++
-          }
-        }
+        summary.unpaid++
       }
     }
 
