@@ -9,11 +9,11 @@ export type NavItem = {
 
 export const appNav: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/family", label: "Family", icon: Group },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/clients", label: "Clients", icon: Contact },
   { href: "/policies", label: "Policies", icon: FileText },
   { href: "/premiums", label: "Premiums", icon: Calculator },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/family", label: "Family", icon: Group },
   { href: "/reminders", label: "Reminders", icon: Bell },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/team", label: "Team", icon: Users },
