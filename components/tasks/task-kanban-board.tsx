@@ -1,17 +1,14 @@
 "use client"
 
-import useSWR from "swr"
+import useSWRInfinite from "swr/infinite"
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { TaskActivityCard } from "@/components/tasks/task-activity-card"
-import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 import { TaskDetailsDialog } from "@/components/tasks/task-details-dialog"
 import { CompleteTaskDialog } from "@/components/tasks/complete-task-dialog"
-import { AssignTaskDialog } from "@/components/tasks/assign-task-dialog"
+
 import { useToast } from "@/hooks/use-toast"
-import { Plus } from "lucide-react"
-import { Badge } from "../ui/badge"
+import { Button } from "@/components/ui/button"
+import { AssignTaskDrawer } from "./assign-task-dialog"
+import { Eye, Trash2 } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -24,200 +21,143 @@ interface TaskKanbanBoardProps {
   }
 }
 
-const statusColumns = [
-  { key: "PENDING", label: "Pending", color: "bg-yellow-50 dark:bg-yellow-950/20" },
-  { key: "IN_PROGRESS", label: "In Progress", color: "bg-blue-50 dark:bg-blue-950/20" },
-  { key: "COMPLETED", label: "Completed", color: "bg-green-50 dark:bg-green-950/20" },
-  { key: "CANCELLED", label: "Cancelled", color: "bg-red-50 dark:bg-red-950/20" },
-]
-
 export function TaskKanbanBoard({ filters }: TaskKanbanBoardProps) {
   const { toast } = useToast()
-  const { data: profileData } = useSWR("/api/user/profile", fetcher)
-  const user = profileData?.item
-
-  // Dialog states
-  const [createOpen, setCreateOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [completeOpen, setCompleteOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<any>(null)
 
-  // Fetch tasks for each status
-  const { data: pendingData, mutate: mutatePending } = useSWR(
-    `/api/tasks?status=PENDING&myTasks=${filters.myTasks}&priority=${filters.priority}&assignedTo=${filters.assignedTo}&pageSize=50`,
-    fetcher,
-  )
-  const { data: inProgressData, mutate: mutateInProgress } = useSWR(
-    `/api/tasks?status=IN_PROGRESS&myTasks=${filters.myTasks}&priority=${filters.priority}&assignedTo=${filters.assignedTo}&pageSize=50`,
-    fetcher,
-  )
-  const { data: completedData, mutate: mutateCompleted } = useSWR(
-    `/api/tasks?status=COMPLETED&myTasks=${filters.myTasks}&priority=${filters.priority}&assignedTo=${filters.assignedTo}&pageSize=50`,
-    fetcher,
-  )
-  const { data: cancelledData, mutate: mutateCancelled } = useSWR(
-    `/api/tasks?status=CANCELLED&myTasks=${filters.myTasks}&priority=${filters.priority}&assignedTo=${filters.assignedTo}&pageSize=50`,
-    fetcher,
-  )
-
-  const tasksByStatus = {
-    PENDING: pendingData?.items ?? [],
-    IN_PROGRESS: inProgressData?.items ?? [],
-    COMPLETED: completedData?.items ?? [],
-    CANCELLED: cancelledData?.items ?? [],
+  // ✅ Infinite pagination
+  const getKey = (pageIndex: number, previousPageData: any) => {
+    if (previousPageData && !previousPageData.items.length) return null
+    return `/api/tasks?page=${pageIndex + 1}&pageSize=15&myTasks=${filters.myTasks}&status=${filters.status}&priority=${filters.priority}&assignedTo=${filters.assignedTo}`
   }
 
-  function mutateAll() {
-    mutatePending()
-    mutateInProgress()
-    mutateCompleted()
-    mutateCancelled()
-  }
-
-  async function updateTaskStatus(taskId: string, status: string) {
-    try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      })
-
-      if (res.ok) {
-        toast({ title: "Task updated", description: "Task status has been updated" })
-        mutateAll()
-      } else {
-        const data = await res.json()
-        toast({
-          title: "Error",
-          description: data.error || "Failed to update task",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Network error. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  async function deleteTask(taskId: string) {
-    if (!confirm("Are you sure you want to delete this task?")) return
-
-    try {
-      const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" })
-
-      if (res.ok) {
-        toast({ title: "Task deleted", description: "Task has been deleted" })
-        mutateAll()
-      } else {
-        const data = await res.json()
-        toast({
-          title: "Error",
-          description: data.error || "Failed to delete task",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Network error. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
+  const { data, size, setSize, mutate } = useSWRInfinite(getKey, fetcher)
+  const tasks = data ? data.flatMap((d) => d.items) : []
+  const isReachingEnd = data && data[data.length - 1]?.items?.length === 0
 
   function openDetails(task: any) {
     setSelectedTask(task)
     setDetailsOpen(true)
   }
-
   function openComplete(task: any) {
     setSelectedTask(task)
     setCompleteOpen(true)
   }
-
   function openAssign(task: any) {
     setSelectedTask(task)
     setAssignOpen(true)
   }
 
   return (
-    <>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {statusColumns.map((column) => (
-          <Card key={column.key} className={column.color}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center justify-between">
-                <span>{column.label}</span>
-                <Badge variant="outline" className="text-xs">
-                  {tasksByStatus[column.key as keyof typeof tasksByStatus].length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {column.key === "PENDING" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-2 bg-transparent"
-                  onClick={() => setCreateOpen(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Task
-                </Button>
-              )}
+    <div className="space-y-4">
+      {/* Task Feed */}
+      {tasks.map((task) => (
+        <div
+          key={task.id}
+          className="rounded-xl border bg-card shadow-sm p-2 flex flex-col gap-2 active:scale-[0.99] transition"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-base">{task.title}</h3>
+            <span
+              className={`text-xs px-2 py-1 rounded-full ${
+                task.status === "PENDING"
+                  ? "bg-amber-100 text-amber-700"
+                  : task.status === "IN_PROGRESS"
+                  ? "bg-blue-100 text-blue-700"
+                  : task.status === "COMPLETED"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
+              }`}
+            >
+              {task.status.replace("_", " ")}
+            </span>
+          </div>
 
-              {tasksByStatus[column.key as keyof typeof tasksByStatus].map((task: any) => (
-                <TaskActivityCard
-                  key={task.id}
-                  task={task}
-                  onEdit={openDetails}
-                  onComplete={openComplete}
-                  onAssign={openAssign}
-                  onDelete={deleteTask}
-                  onStatusChange={updateTaskStatus}
-                  currentUserId={user?.id}
-                  userRole={user?.role}
-                />
-              ))}
-
-              {tasksByStatus[column.key as keyof typeof tasksByStatus].length === 0 && (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  No {column.label.toLowerCase()} tasks
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+          {/* Sub Info */}
+              <div className="grid grid-cols-2 text-xs text-muted-foreground gap-1">
+        <span>
+          <strong>Priority:</strong> {task.priority || "Normal"}
+        </span>
+        {task.dueDate && (
+          <span>
+            <strong>Due:</strong> {new Date(task.dueDate).toLocaleDateString()}
+          </span>
+        )}
+        <span>
+          <strong>Created:</strong>{" "}
+          {task.createdBy?.name || "Unknown"}
+        </span>
+        <span>
+          <strong>Assigned:</strong>{" "}
+          {task.assignedTo?.name || "Unassigned"}
+        </span>
       </div>
 
+          {/* Actions */}
+          <div className="flex gap-3 pt-2">
+            <Button size="sm" variant="outline" onClick={() => openDetails(task)}>
+              <Eye/>
+            </Button>
+            {task.status !== "COMPLETED" && (
+              <Button size="sm" variant="default" onClick={() => openComplete(task)}>
+                Complete
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={() => openAssign(task)}>
+              Assign
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={async () => {
+                await fetch(`/api/tasks/${task.id}`, { method: "DELETE" })
+                toast({ title: "Task deleted" })
+                mutate()
+              }}
+            >
+              <Trash2/>
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      {/* Load More */}
+      {!isReachingEnd && (
+        <div className="flex justify-center py-4">
+          <Button
+            variant="outline"
+            onClick={() => setSize(size + 1)}
+            className="rounded-full"
+          >
+            Load More
+          </Button>
+        </div>
+      )}
+
       {/* Dialogs */}
-      <CreateTaskDialog open={createOpen} onOpenChange={setCreateOpen} onSuccess={mutateAll} />
-
       <TaskDetailsDialog open={detailsOpen} onOpenChange={setDetailsOpen} task={selectedTask} />
-
       <CompleteTaskDialog
         open={completeOpen}
         onOpenChange={setCompleteOpen}
         task={selectedTask}
         onSuccess={() => {
-          mutateAll()
+          mutate()
           setCompleteOpen(false)
         }}
       />
-
-      <AssignTaskDialog
+      <AssignTaskDrawer
         open={assignOpen}
         onOpenChange={setAssignOpen}
         task={selectedTask}
         onSuccess={() => {
-          mutateAll()
+          mutate()
           setAssignOpen(false)
         }}
       />
-    </>
+    </div>
   )
 }

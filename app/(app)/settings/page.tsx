@@ -1,91 +1,125 @@
-import { getServerSession } from "@/lib/session"
-import { getPrisma } from "@/lib/db"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { WorkspaceSettings } from "@/components/settings/workspace-settings"
-import { WorkspaceDetails } from "@/components/settings/workspace-details"
-import { ProfileSettings } from "@/components/settings/profile-settings"
-import { SecuritySettings } from "@/components/settings/security-settings"
-import { AuditLogs } from "@/components/settings/audit-logs"
-import { EmailSettings } from "@/components/settings/email-settings"
-import { LocationSettings } from "@/components/settings/location-settings"
+import { getServerSession } from "@/lib/session";
+import { getPrisma } from "@/lib/db";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WorkspaceSettings } from "@/components/settings/workspace-settings";
+import { WorkspaceDetails } from "@/components/settings/workspace-details";
+import { ProfileSettings } from "@/components/settings/profile-settings";
+import { SecuritySettings } from "@/components/settings/security-settings";
+import { AuditLogs } from "@/components/settings/audit-logs";
+import { EmailSettings } from "@/components/settings/email-settings";
+import { LocationSettings } from "@/components/settings/location-settings";
 
 export default async function SettingsPage() {
-  const session = await getServerSession()
-  if (!session) return null
+  const session = await getServerSession();
+  if (!session) return null;
 
-  const prisma = await getPrisma()
+  const prisma = await getPrisma();
   const membership = await prisma.membership.findFirst({
-    where: { userId: session.sub, workspaceId: session.ws }
-  })
-  
-  const isOwner = membership?.role === "OWNER"
+    where: { userId: session.sub, workspaceId: session.ws },
+  });
+
+  const isOwner = membership?.role === "OWNER";
 
   return (
     <section className="space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold text-balance">Settings</h1>
+      <header className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          {isOwner 
-            ? "Manage your profile, workspace, and security settings" 
-            : "Manage your profile settings"
-          }
+          {isOwner
+            ? "Manage your profile, workspace, and security settings"
+            : "Manage your profile settings"}
         </p>
       </header>
 
       {isOwner ? (
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="workspace">Workspace</TabsTrigger>
-            <TabsTrigger value="details">Office Details</TabsTrigger>
-            <TabsTrigger value="email">Email</TabsTrigger>
-            <TabsTrigger value="location">Location</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="audit">Audit Logs</TabsTrigger>
+          {/* Tab list */}
+          <TabsList
+            className="
+              flex w-full gap-2 overflow-x-auto rounded-lg border bg-muted/40 p-1
+              scrollbar-hide snap-x snap-mandatory pl-76 md:pl-0
+            "
+          >
+            <TabsTrigger value="profile" className="shrink-0 snap-start">
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="workspace" className="shrink-0 snap-start">
+              Workspace
+            </TabsTrigger>
+            <TabsTrigger value="details" className="shrink-0 snap-start">
+              Office Details
+            </TabsTrigger>
+            <TabsTrigger value="email" className="shrink-0 snap-start">
+              Email
+            </TabsTrigger>
+            <TabsTrigger value="location" className="shrink-0 snap-start">
+              Location
+            </TabsTrigger>
+            <TabsTrigger value="security" className="shrink-0 snap-start">
+              Security
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="shrink-0 snap-start">
+              Audit Logs
+            </TabsTrigger>
           </TabsList>
-          
+
+          {/* Tab content */}
           <TabsContent value="profile">
-            <ProfileSettings />
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <ProfileSettings />
+            </div>
           </TabsContent>
-          
+
           <TabsContent value="workspace">
-            <WorkspaceSettings />
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <WorkspaceSettings />
+            </div>
           </TabsContent>
-          
+
           <TabsContent value="details">
-            <WorkspaceDetails />
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <WorkspaceDetails />
+            </div>
           </TabsContent>
-          
+
           <TabsContent value="email">
-            <EmailSettings />
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <EmailSettings />
+            </div>
           </TabsContent>
-          
+
           <TabsContent value="location">
-            <LocationSettings />
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <LocationSettings />
+            </div>
           </TabsContent>
-          
+
           <TabsContent value="security">
-            <SecuritySettings />
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <SecuritySettings />
+            </div>
           </TabsContent>
-          
+
           <TabsContent value="audit">
-            <AuditLogs />
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <AuditLogs />
+            </div>
           </TabsContent>
         </Tabs>
       ) : (
         <div className="space-y-6">
-          <div className="bg-muted/50 border border-muted rounded-lg p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Team Member Access:</span>
-              <span className="font-medium">Profile settings only</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Contact your workspace owner for workspace, email, and security settings
+          <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+            <div className="font-medium text-foreground">Team Member Access</div>
+            <p className="mt-1 text-muted-foreground">
+              You can only manage your profile settings. For workspace, email,
+              and security changes, contact your workspace owner.
             </p>
           </div>
-          <ProfileSettings />
+          <div className="rounded-lg border bg-card p-4 shadow-sm">
+            <ProfileSettings />
+          </div>
         </div>
       )}
     </section>
-  )
+  );
 }
