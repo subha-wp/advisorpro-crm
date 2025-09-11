@@ -1,23 +1,33 @@
 "use client"
 
 import type React from "react"
-
-import useSWR from "swr"
 import { useMemo, useRef, useState } from "react"
+import useSWR from "swr"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Card, CardContent, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Users, Plus, UserPlus, Workflow } from "lucide-react"
+import {
+  Users,
+  UserPlus,
+  Workflow,
+  Search,
+  X,
+  Download,
+  Upload,
+  Filter,
+  Phone,
+  Mail,
+  CreditCard,
+  Hash,
+} from "lucide-react"
 import { FamilyWorkflow } from "./family-workflow"
 import * as XLSX from "xlsx"
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
-
+// Types
 type ClientGroup = {
   id: string
   name: string
@@ -41,11 +51,392 @@ type Client = {
   relationshipToHead?: string
 }
 
+const fetcher = (url: string) => fetch(url).then((r) => r.json())
+
 const allowedSorts = ["createdAt", "updatedAt", "name", "email", "mobile"] as const
 type SortKey = (typeof allowedSorts)[number]
 
 const relationshipOptions = ["Head", "Spouse", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Other"]
 
+const ClientCard: React.FC<{
+  client: Client
+  onEdit: (client: Client) => void
+  onDelete: (id: string) => void
+  onRestore: (id: string) => void
+}> = ({ client, onEdit, onDelete, onRestore }) => {
+  return (
+    <Card
+      className={`transition-all duration-200 hover:shadow-md ${client.deletedAt ? "opacity-60 bg-muted/30" : "bg-background"} border-2 rounded-2xl overflow-hidden`}
+    >
+      <CardContent className="p-2">
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="flex justify-between items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-lg text-balance leading-tight">{client.name}</h3>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {client.clientGroup && (
+                  <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                    <Users className="h-3 w-3" />
+                    {client.clientGroup.name}
+                  </Badge>
+                )}
+                {client.relationshipToHead && (
+                  <Badge variant="outline" className="text-xs">
+                    {client.relationshipToHead}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Action Menu */}
+            <div className="flex gap-2">
+              {client.deletedAt ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onRestore(client.id)}
+                  className="rounded-full h-9 px-4 text-xs"
+                >
+                  Restore
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => (window.location.href = `/policies?clientId=${client.id}`)}
+                    className="rounded-full h-9 px-4 text-xs bg-primary hover:bg-primary/90"
+                  >
+                    Add Policy
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onEdit(client)}
+                    className="rounded-full h-9 px-4 text-xs"
+                  >
+                    Edit
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Contact Info */}
+          <div className="grid grid-cols-1 gap-3">
+            {client.mobile && (
+              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm font-medium">{client.mobile}</span>
+              </div>
+            )}
+            {client.email && (
+              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm font-medium truncate">{client.email}</span>
+              </div>
+            )}
+
+            {/* Document Info */}
+            <div className="grid grid-cols-2 gap-2">
+              {client.panNo && (
+                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-lg">
+                  <CreditCard className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs font-mono">{client.panNo}</span>
+                </div>
+              )}
+              {client.aadhaarNo && (
+                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-lg">
+                  <Hash className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs font-mono">****{client.aadhaarNo.slice(-4)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tags */}
+          {client.tags?.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {client.tags.map((tag, i) => (
+                <Badge key={i} variant="outline" className="text-xs px-2 py-1 rounded-full">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {/* Delete Action for Active Clients */}
+          {!client.deletedAt && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onDelete(client.id)}
+              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl h-10"
+            >
+              Delete Client
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+const SearchBar: React.FC<{ value: string; onChange: (value: string) => void }> = ({ value, onChange }) => {
+  return (
+    <div className="relative">
+      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+      <Input
+        placeholder="Search clients by name, mobile, email..."
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="pl-12 pr-12 h-14 text-base rounded-2xl border-2 focus:border-primary transition-all duration-200"
+      />
+      {value && (
+        <button
+          className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-muted/80 transition-colors"
+          onClick={() => onChange("")}
+        >
+          <X className="h-5 w-5 text-muted-foreground" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+const Pagination: React.FC<{
+  page: number
+  pages: number
+  setPage: (page: number) => void
+}> = ({ page, pages, setPage }) => {
+  return (
+    <div className="flex justify-center items-center gap-4 mt-6 pb-4">
+      <Button
+        variant="outline"
+        disabled={page <= 1}
+        onClick={() => setPage(page - 1)}
+        className="rounded-full h-12 px-6"
+      >
+        Previous
+      </Button>
+      <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
+        <span className="text-sm font-medium">
+          {page} of {pages}
+        </span>
+      </div>
+      <Button
+        variant="outline"
+        disabled={page >= pages}
+        onClick={() => setPage(page + 1)}
+        className="rounded-full h-12 px-6"
+      >
+        Next
+      </Button>
+    </div>
+  )
+}
+
+// Reusable Client Form Component
+const ClientForm: React.FC<{
+  form: any
+  setForm: (form: any) => void
+  groups: ClientGroup[]
+  editing: Client | null
+  onSubmit: (e: React.FormEvent) => void
+  onCancel: () => void
+}> = ({ form, setForm, groups, editing, onSubmit, onCancel }) => {
+  return (
+    <form className="space-y-4" onSubmit={onSubmit}>
+      <div className="space-y-2">
+        <Label>Name *</Label>
+        <Input
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          required
+          className="py-6"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Date of Birth</Label>
+        <Input
+          type="date"
+          value={form.dob}
+          onChange={(e) => setForm({ ...form, dob: e.target.value })}
+          className="py-6"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Mobile</Label>
+        <Input
+          value={form.mobile}
+          onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+          placeholder="+91 9876543210"
+          className="py-6"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Email</Label>
+        <Input
+          type="email"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          className="py-6"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>PAN Number</Label>
+        <Input
+          value={form.panNo}
+          onChange={(e) => setForm({ ...form, panNo: e.target.value.toUpperCase() })}
+          placeholder="ABCDE1234F"
+          maxLength={10}
+          pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}"
+          className="py-6"
+        />
+        <p className="text-xs text-gray-400">Format: ABCDE1234F</p>
+      </div>
+      <div className="space-y-2">
+        <Label>Aadhaar Number</Label>
+        <Input
+          value={form.aadhaarNo}
+          onChange={(e) => {
+            const value = e.target.value.replace(/\D/g, "").slice(0, 12)
+            setForm({ ...form, aadhaarNo: value })
+          }}
+          placeholder="1234 5678 9012"
+          maxLength={12}
+          className="py-6"
+        />
+        <p className="text-xs text-gray-400">12-digit number</p>
+      </div>
+      <div className="space-y-2">
+        <Label>Address</Label>
+        <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="py-6" />
+      </div>
+      <div className="space-y-2">
+        <Label>Tags (comma separated)</Label>
+        <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className="py-6" />
+      </div>
+      <div className="border-t pt-4">
+        <h4 className="font-medium mb-3">Family Group</h4>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={form.createNewGroup}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                createNewGroup: e.target.checked,
+                clientGroupId: e.target.checked ? "" : form.clientGroupId,
+              })
+            }
+          />
+          Create new family group
+        </label>
+        {form.createNewGroup ? (
+          <div className="space-y-2 mt-2">
+            <Label>Family Group Name *</Label>
+            <Input
+              value={form.groupName}
+              onChange={(e) => setForm({ ...form, groupName: e.target.value })}
+              placeholder="e.g., Smith Family"
+              required={form.createNewGroup}
+              className="py-6"
+            />
+          </div>
+        ) : (
+          <div className="space-y-2 mt-2">
+            <Label>Select Existing Group</Label>
+            <Select value={form.clientGroupId} onValueChange={(value) => setForm({ ...form, clientGroupId: value })}>
+              <SelectTrigger className="py-6">
+                <SelectValue placeholder="Choose a family group (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No group</SelectItem>
+                {groups.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
+                    {group.name} ({group._count.clients} members)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {(form.clientGroupId || form.createNewGroup) && (
+          <div className="space-y-2 mt-2">
+            <Label>Relationship to Head</Label>
+            <Select
+              value={form.relationshipToHead}
+              onValueChange={(value) => setForm({ ...form, relationshipToHead: value })}
+            >
+              <SelectTrigger className="py-6">
+                <SelectValue placeholder="Select relationship" />
+              </SelectTrigger>
+              <SelectContent>
+                {relationshipOptions.map((rel) => (
+                  <SelectItem key={rel} value={rel}>
+                    {rel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+      <DialogFooter className="mt-4 flex justify-between">
+        <Button type="button" variant="outline" onClick={onCancel} className="rounded-full bg-transparent">
+          Cancel
+        </Button>
+        <Button type="submit" className="rounded-full">
+          {editing ? "Save changes" : "Create Client"}
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
+// Reusable Group Form Component
+const GroupForm: React.FC<{
+  groupForm: { name: string; description: string }
+  setGroupForm: (form: any) => void
+  onSubmit: (e: React.FormEvent) => void
+  onCancel: () => void
+}> = ({ groupForm, setGroupForm, onSubmit, onCancel }) => {
+  return (
+    <form className="space-y-4" onSubmit={onSubmit}>
+      <div className="space-y-2">
+        <Label>Group Name *</Label>
+        <Input
+          value={groupForm.name}
+          onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+          placeholder="e.g., Smith Family"
+          required
+          className="py-6"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Description</Label>
+        <Input
+          value={groupForm.description}
+          onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
+          placeholder="Optional description"
+          className="py-6"
+        />
+      </div>
+      <DialogFooter className="flex justify-between">
+        <Button type="button" variant="outline" onClick={onCancel} className="rounded-full bg-transparent">
+          Cancel
+        </Button>
+        <Button type="submit" className="rounded-full">
+          Create Group
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
+// Main ClientsTable Component
 export function ClientsTable() {
   const [q, setQ] = useState("")
   const [showDeleted, setShowDeleted] = useState(false)
@@ -54,35 +445,11 @@ export function ClientsTable() {
   const pageSize = 20
   const [sort, setSort] = useState<SortKey>("createdAt")
   const [dir, setDir] = useState<"asc" | "desc">("desc")
-
   const [familyWorkflowOpen, setFamilyWorkflowOpen] = useState(false)
-
-  const url = useMemo(() => {
-    const params = new URLSearchParams({
-      q,
-      page: String(page),
-      pageSize: String(pageSize),
-      deleted: String(showDeleted),
-      sort,
-      dir,
-      ...(selectedGroupId ? { groupId: selectedGroupId } : {}),
-    })
-    return `/api/clients?${params.toString()}`
-  }, [q, page, pageSize, showDeleted, sort, dir, selectedGroupId])
-
-  // Fetch groups for filter dropdown
-  const { data: groupsData, mutate: mutateGroups } = useSWR("/api/client-groups", fetcher)
-  const groups: ClientGroup[] = groupsData?.items ?? []
-
-  const { data, mutate, isLoading } = useSWR(url, fetcher)
-
-  const items: Client[] = data?.items ?? []
-  const total = data?.total ?? 0
-  const pages = Math.max(1, Math.ceil(total / pageSize))
-
-  // Create/Edit modal state
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Client | null>(null)
+  const [groupModalOpen, setGroupModalOpen] = useState(false)
+
   const [form, setForm] = useState({
     name: "",
     dob: "",
@@ -98,9 +465,30 @@ export function ClientsTable() {
     groupName: "",
   })
 
-  // Group management modal
-  const [groupModalOpen, setGroupModalOpen] = useState(false)
   const [groupForm, setGroupForm] = useState({ name: "", description: "" })
+
+  const url = useMemo(() => {
+    const params = new URLSearchParams({
+      q,
+      page: String(page),
+      pageSize: String(pageSize),
+      deleted: String(showDeleted),
+      sort,
+      dir,
+      ...(selectedGroupId ? { groupId: selectedGroupId } : {}),
+    })
+    return `/api/clients?${params.toString()}`
+  }, [q, page, pageSize, showDeleted, sort, dir, selectedGroupId])
+
+  const { data: groupsData, mutate: mutateGroups } = useSWR("/api/client-groups", fetcher)
+  const groups: ClientGroup[] = groupsData?.items ?? []
+
+  const { data, mutate, isLoading } = useSWR(url, fetcher)
+  const items: Client[] = data?.items ?? []
+  const total = data?.total ?? 0
+  const pages = Math.max(1, Math.ceil(total / pageSize))
+
+  const inputRef = useRef<HTMLInputElement>(null)
 
   function openCreate() {
     setEditing(null)
@@ -140,10 +528,6 @@ export function ClientsTable() {
     setOpen(true)
   }
 
-  function closeModal() {
-    setOpen(false)
-  }
-
   async function submitForm(e: React.FormEvent) {
     e.preventDefault()
     const payload: any = {
@@ -173,12 +557,9 @@ export function ClientsTable() {
     if (res.ok) {
       setOpen(false)
       mutate()
-      // Refresh groups data if new group was created
       if (form.createNewGroup) {
         mutateGroups()
       }
-    } else {
-      // optionally show toast
     }
   }
 
@@ -212,8 +593,6 @@ export function ClientsTable() {
     mutate()
   }
 
-  // CSV import
-  const inputRef = useRef<HTMLInputElement>(null)
   function triggerImport() {
     inputRef.current?.click()
   }
@@ -265,354 +644,6 @@ export function ClientsTable() {
     mutateGroups()
   }
 
-  return (
-    <div className="space-y-6">
-     
-
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="text-balance">
-            {selectedGroupId ? `${groups.find((g) => g.id === selectedGroupId)?.name} Members` : "Clients"}
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <Input placeholder="Search..." value={q} onChange={(e) => setQ(e.target.value)} className="w-40" />
-            <Button variant="secondary" onClick={() => setShowDeleted((v) => !v)}>
-              {showDeleted ? "Hide deleted" : "Show deleted"}
-            </Button>
-            <Button onClick={triggerImport}>Import CSV</Button>
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-              className="hidden"
-              onChange={handleFile}
-            />
-            <Button onClick={exportCSV}>Export CSV</Button>
-            <Button onClick={openCreate}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add Client
-            </Button>
-            <Button onClick={() => setFamilyWorkflowOpen(true)} variant="outline">
-              <Workflow className="h-4 w-4 mr-2" />
-              Add Family
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead role="button" onClick={() => toggleSort("name")}>
-                    Name {sort === "name" ? (dir === "asc" ? "↑" : "↓") : ""}
-                  </TableHead>
-                  <TableHead>Family</TableHead>
-                  <TableHead>Relation</TableHead>
-                  <TableHead>PAN</TableHead>
-                  <TableHead>Aadhaar</TableHead>
-                  <TableHead role="button" onClick={() => toggleSort("mobile" as SortKey)}>
-                    Mobile {sort === "mobile" ? (dir === "asc" ? "↑" : "↓") : ""}
-                  </TableHead>
-                  <TableHead role="button" onClick={() => toggleSort("email" as SortKey)}>
-                    Email {sort === "email" ? (dir === "asc" ? "↑" : "↓") : ""}
-                  </TableHead>
-                  <TableHead>Tags</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7}>Loading...</TableCell>
-                  </TableRow>
-                ) : items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7}>No clients</TableCell>
-                  </TableRow>
-                ) : (
-                  items.map((c) => (
-                    <TableRow key={c.id} className={c.deletedAt ? "opacity-60" : ""}>
-                      <TableCell className="font-medium">{c.name}</TableCell>
-                      <TableCell>
-                        {c.clientGroup && (
-                          <Badge variant="secondary" className="flex items-center gap-1 w-fit">
-                            <Users className="h-3 w-3" />
-                            {c.clientGroup.name}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {c.relationshipToHead && <Badge variant="outline">{c.relationshipToHead}</Badge>}
-                      </TableCell>
-                      <TableCell>{c.panNo}</TableCell>
-                      <TableCell>{c.aadhaarNo}</TableCell>
-                      <TableCell>{c.mobile}</TableCell>
-                      <TableCell>{c.email}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {(c.tags ?? []).map((tag, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {c.deletedAt ? (
-                          <Button size="sm" variant="outline" onClick={() => onRestore(c.id)}>
-                            Restore
-                          </Button>
-                        ) : (
-                          <div className="flex items-center gap-2 justify-end">
-                            <Button 
-                              size="sm" 
-                              variant="secondary" 
-                              onClick={() => {
-                                // Navigate to policies page with this client preselected
-                                window.location.href = `/policies?clientId=${c.id}`
-                              }}
-                            >
-                              Add Policy
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => openEdit(c)}>
-                              Edit
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => onDelete(c.id)}>
-                              Delete
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="flex items-center justify-between mt-4">
-            <span className="text-sm text-muted-foreground">
-              Page {page} of {pages} • {total} total
-            </span>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Prev
-              </Button>
-              <Button variant="outline" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{editing ? "Edit Client" : "Add Client"}</DialogTitle>
-            </DialogHeader>
-            <form className="grid gap-4" onSubmit={submitForm}>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Name *</Label>
-                  <Input
-                    value={form.name}
-                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Date of Birth</Label>
-                  <Input
-                    type="date"
-                    value={form.dob}
-                    onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Mobile</Label>
-                  <Input
-                    value={form.mobile}
-                    onChange={(e) => setForm((f) => ({ ...f, mobile: e.target.value }))}
-                    placeholder="+91 9876543210"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>PAN Number</Label>
-                  <Input
-                    value={form.panNo}
-                    onChange={(e) => setForm((f) => ({ ...f, panNo: e.target.value.toUpperCase() }))}
-                    placeholder="ABCDE1234F"
-                    maxLength={10}
-                    pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}"
-                  />
-                  <p className="text-xs text-muted-foreground">Format: ABCDE1234F</p>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Aadhaar Number</Label>
-                  <Input
-                    value={form.aadhaarNo}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, "").slice(0, 12)
-                      setForm((f) => ({ ...f, aadhaarNo: value }))
-                    }}
-                    placeholder="1234 5678 9012"
-                    maxLength={12}
-                  />
-                  <p className="text-xs text-muted-foreground">12-digit number</p>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Address</Label>
-                <Input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Tags (comma separated)</Label>
-                <Input value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} />
-              </div>
-
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">Family Group</h4>
-                <div className="grid gap-4">
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={form.createNewGroup}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            createNewGroup: e.target.checked,
-                            clientGroupId: e.target.checked ? "" : f.clientGroupId,
-                          }))
-                        }
-                      />
-                      Create new family group
-                    </label>
-                  </div>
-
-                  {form.createNewGroup ? (
-                    <div className="grid gap-2">
-                      <Label>Family Group Name *</Label>
-                      <Input
-                        value={form.groupName}
-                        onChange={(e) => setForm((f) => ({ ...f, groupName: e.target.value }))}
-                        placeholder="e.g., Smith Family"
-                        required={form.createNewGroup}
-                      />
-                    </div>
-                  ) : (
-                    <div className="grid gap-2">
-                      <Label>Select Existing Group</Label>
-                      <Select
-                        value={form.clientGroupId}
-                        onValueChange={(value) => setForm((f) => ({ ...f, clientGroupId: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a family group (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No group</SelectItem>
-                          {groups.map((group) => (
-                            <SelectItem key={group.id} value={group.id}>
-                              {group.name} ({group._count.clients} members)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {(form.clientGroupId || form.createNewGroup) && (
-                    <div className="grid gap-2">
-                      <Label>Relationship to Head</Label>
-                      <Select
-                        value={form.relationshipToHead}
-                        onValueChange={(value) => setForm((f) => ({ ...f, relationshipToHead: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select relationship" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {relationshipOptions.map((rel) => (
-                            <SelectItem key={rel} value={rel}>
-                              {rel}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <DialogFooter className="mt-4">
-                <Button type="button" variant="outline" onClick={closeModal}>
-                  Cancel
-                </Button>
-                <Button type="submit">{editing ? "Save changes" : "Create Client"}</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={groupModalOpen} onOpenChange={setGroupModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Family Group</DialogTitle>
-            </DialogHeader>
-            <form className="grid gap-4" onSubmit={submitGroupForm}>
-              <div className="grid gap-2">
-                <Label>Group Name *</Label>
-                <Input
-                  value={groupForm.name}
-                  onChange={(e) => setGroupForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g., Smith Family"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Description</Label>
-                <Input
-                  value={groupForm.description}
-                  onChange={(e) => setGroupForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder="Optional description"
-                />
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setGroupModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Create Group</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </Card>
-
-      <FamilyWorkflow
-        open={familyWorkflowOpen}
-        onOpenChange={setFamilyWorkflowOpen}
-        onComplete={handleFamilyWorkflowComplete}
-      />
-    </div>
-  )
-
   function exportCSV() {
     const rows = items.map((c: any) => ({
       id: c.id,
@@ -633,4 +664,106 @@ export function ClientsTable() {
     XLSX.utils.book_append_sheet(wb, ws, "Clients")
     XLSX.writeFile(wb, "clients.csv")
   }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
+        <div className=" space-y-4 pb-2">
+          {/* Header */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-xl">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold">
+                  {selectedGroupId ? groups.find((g) => g.id === selectedGroupId)?.name : "Clients"}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">{total} total clients</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Search */}
+          <SearchBar value={q} onChange={setQ} />
+
+         
+        </div>
+      </div>
+
+      <div className="pt-6 pb-24 space-y-4">
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading clients...</p>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-12">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <p className="text-lg font-medium text-muted-foreground">No clients found</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {q ? `No results for "${q}"` : "Start by adding your first client"}
+            </p>
+          </div>
+        ) : (
+          <>
+            {items.map((client) => (
+              <ClientCard key={client.id} client={client} onEdit={openEdit} onDelete={onDelete} onRestore={onRestore} />
+            ))}
+            <Pagination page={page} pages={pages} setPage={setPage} />
+          </>
+        )}
+      </div>
+
+      <div className="fixed bottom-6 right-6 flex flex-col gap-3">
+        <Button
+          onClick={() => setFamilyWorkflowOpen(true)}
+          className="rounded-full h-14 w-14 shadow-lg hover:shadow-xl transition-all duration-200 bg-blue-600 hover:bg-blue-700"
+        >
+          <Workflow className="h-6 w-6" />
+        </Button>
+        <Button
+          onClick={openCreate}
+          className="rounded-full h-16 w-16 shadow-lg hover:shadow-xl transition-all duration-200 bg-primary hover:bg-primary/90"
+        >
+          <UserPlus className="h-7 w-7" />
+        </Button>
+      </div>
+
+      {/* Dialogs */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit Client" : "Add Client"}</DialogTitle>
+          </DialogHeader>
+          <ClientForm
+            form={form}
+            setForm={setForm}
+            groups={groups}
+            editing={editing}
+            onSubmit={submitForm}
+            onCancel={() => setOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={groupModalOpen} onOpenChange={setGroupModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Family Group</DialogTitle>
+          </DialogHeader>
+          <GroupForm
+            groupForm={groupForm}
+            setGroupForm={setGroupForm}
+            onSubmit={submitGroupForm}
+            onCancel={() => setGroupModalOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      <FamilyWorkflow
+        open={familyWorkflowOpen}
+        onOpenChange={setFamilyWorkflowOpen}
+        onComplete={handleFamilyWorkflowComplete}
+      />
+    </div>
+  )
 }

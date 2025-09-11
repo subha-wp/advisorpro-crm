@@ -5,8 +5,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { FileText, Calendar, IndianRupee } from "lucide-react"
+import { FileText, Calendar, IndianRupee, CheckCircle2 } from "lucide-react"
 import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 
 interface Policy {
   id: string
@@ -37,55 +38,94 @@ export function PolicySelector({ policies, selectedPolicyId, onPolicySelect, cla
   }
 
   if (policies.length === 0) {
-    return <div className="text-center py-8 text-muted-foreground">No policies found for this client</div>
+    return (
+      <div className="text-center py-12">
+        <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+        <p className="text-lg font-medium text-muted-foreground">No policies found</p>
+        <p className="text-sm text-muted-foreground mt-1">This client doesn't have any policies yet</p>
+      </div>
+    )
   }
 
   return (
     <div className={className}>
-      <Label className="text-base font-medium">Select Policy</Label>
-      <RadioGroup value={selectedPolicy} onValueChange={handlePolicyChange} className="mt-3">
-        <div className="space-y-3">
-          {policies.map((policy) => (
-            <div key={policy.id} className="flex items-center space-x-3">
-              <RadioGroupItem value={policy.id} id={policy.id} />
-              <Card className="flex-1 cursor-pointer" onClick={() => handlePolicyChange(policy.id)}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{policy.policyNumber}</span>
-                        <Badge variant={policy.status === "ACTIVE" ? "default" : "secondary"} className="text-xs">
+      <Label className="text-lg font-semibold mb-4 block">Select Policy</Label>
+      <RadioGroup value={selectedPolicy} onValueChange={handlePolicyChange} className="space-y-4">
+        {policies.map((policy) => (
+          <div key={policy.id} className="relative">
+            <div className="flex items-start space-x-4">
+              <RadioGroupItem value={policy.id} id={policy.id} className="mt-6 h-5 w-5" />
+              <Card
+                className={cn(
+                  "flex-1 cursor-pointer transition-all duration-200 hover:shadow-md border-2 rounded-2xl overflow-hidden",
+                  selectedPolicy === policy.id
+                    ? "border-primary bg-primary/5 shadow-md"
+                    : "border-border hover:border-primary/50",
+                )}
+                onClick={() => handlePolicyChange(policy.id)}
+              >
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <div className="p-2 bg-primary/10 rounded-xl">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg truncate">{policy.policyNumber}</h3>
+                          <p className="text-sm text-muted-foreground">{policy.insurer}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={policy.status === "ACTIVE" ? "default" : "secondary"}
+                          className="text-xs font-medium"
+                        >
                           {policy.status}
                         </Badge>
+                        {selectedPolicy === policy.id && <CheckCircle2 className="h-5 w-5 text-primary" />}
                       </div>
+                    </div>
 
-                      <div className="text-sm text-muted-foreground">
-                        <div>{policy.insurer}</div>
-                        {policy.planName && <div>{policy.planName}</div>}
+                    {/* Plan Name */}
+                    {policy.planName && (
+                      <div className="p-3 bg-muted/30 rounded-xl">
+                        <p className="font-medium text-sm">{policy.planName}</p>
                       </div>
+                    )}
 
-                      <div className="flex items-center space-x-4 text-sm">
-                        {policy.nextDueDate && (
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>Due: {format(new Date(policy.nextDueDate), "dd MMM yyyy")}</span>
+                    {/* Policy Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {policy.nextDueDate && (
+                        <div className="flex items-center space-x-3 p-3 bg-muted/20 rounded-xl">
+                          <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-muted-foreground font-medium">Next Due</p>
+                            <p className="text-sm font-semibold">
+                              {format(new Date(policy.nextDueDate), "dd MMM yyyy")}
+                            </p>
                           </div>
-                        )}
-                        {policy.premiumAmount && (
-                          <div className="flex items-center space-x-1">
-                            <IndianRupee className="h-3 w-3" />
-                            <span>₹{policy.premiumAmount.toLocaleString()}</span>
+                        </div>
+                      )}
+
+                      {policy.premiumAmount && (
+                        <div className="flex items-center space-x-3 p-3 bg-muted/20 rounded-xl">
+                          <IndianRupee className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-muted-foreground font-medium">Premium</p>
+                            <p className="text-sm font-semibold">₹{policy.premiumAmount.toLocaleString()}</p>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </RadioGroup>
     </div>
   )
