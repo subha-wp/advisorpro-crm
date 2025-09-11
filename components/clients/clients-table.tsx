@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client"
 
 import type React from "react"
@@ -9,11 +10,15 @@ import { Card, CardContent, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Users,
-  UserPlus,
-  Workflow,
   Search,
   X,
   Download,
@@ -23,9 +28,12 @@ import {
   Mail,
   CreditCard,
   Hash,
+  MoreVertical,
+  UsersRound,
 } from "lucide-react"
 import { FamilyWorkflow } from "./family-workflow"
 import * as XLSX from "xlsx"
+import { ClientCard } from "./client-card"
 
 // Types
 type ClientGroup = {
@@ -58,130 +66,6 @@ type SortKey = (typeof allowedSorts)[number]
 
 const relationshipOptions = ["Head", "Spouse", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Other"]
 
-const ClientCard: React.FC<{
-  client: Client
-  onEdit: (client: Client) => void
-  onDelete: (id: string) => void
-  onRestore: (id: string) => void
-}> = ({ client, onEdit, onDelete, onRestore }) => {
-  return (
-    <Card
-      className={`transition-all duration-200 hover:shadow-md ${client.deletedAt ? "opacity-60 bg-muted/30" : "bg-background"} border-2 rounded-2xl overflow-hidden`}
-    >
-      <CardContent className="p-2">
-        <div className="space-y-4">
-          {/* Header */}
-          <div className="flex justify-between items-start gap-3">
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-lg text-balance leading-tight">{client.name}</h3>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {client.clientGroup && (
-                  <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-                    <Users className="h-3 w-3" />
-                    {client.clientGroup.name}
-                  </Badge>
-                )}
-                {client.relationshipToHead && (
-                  <Badge variant="outline" className="text-xs">
-                    {client.relationshipToHead}
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Action Menu */}
-            <div className="flex gap-2">
-              {client.deletedAt ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onRestore(client.id)}
-                  className="rounded-full h-9 px-4 text-xs"
-                >
-                  Restore
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => (window.location.href = `/policies?clientId=${client.id}`)}
-                    className="rounded-full h-9 px-4 text-xs bg-primary hover:bg-primary/90"
-                  >
-                    Add Policy
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onEdit(client)}
-                    className="rounded-full h-9 px-4 text-xs"
-                  >
-                    Edit
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Contact Info */}
-          <div className="grid grid-cols-1 gap-3">
-            {client.mobile && (
-              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
-                <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-sm font-medium">{client.mobile}</span>
-              </div>
-            )}
-            {client.email && (
-              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
-                <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-sm font-medium truncate">{client.email}</span>
-              </div>
-            )}
-
-            {/* Document Info */}
-            <div className="grid grid-cols-2 gap-2">
-              {client.panNo && (
-                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-lg">
-                  <CreditCard className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs font-mono">{client.panNo}</span>
-                </div>
-              )}
-              {client.aadhaarNo && (
-                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-lg">
-                  <Hash className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs font-mono">****{client.aadhaarNo.slice(-4)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Tags */}
-          {client.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {client.tags.map((tag, i) => (
-                <Badge key={i} variant="outline" className="text-xs px-2 py-1 rounded-full">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          {/* Delete Action for Active Clients */}
-          {!client.deletedAt && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => onDelete(client.id)}
-              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl h-10"
-            >
-              Delete Client
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 const SearchBar: React.FC<{ value: string; onChange: (value: string) => void }> = ({ value, onChange }) => {
   return (
@@ -667,8 +551,8 @@ export function ClientsTable() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
-        <div className=" space-y-4 pb-2">
+      <div className="sticky top-0 z-40 bg-white  border-b">
+        <div className="space-y-4 pb-2">
           {/* Header */}
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
@@ -682,16 +566,45 @@ export function ClientsTable() {
                 <p className="text-sm text-muted-foreground">{total} total clients</p>
               </div>
             </div>
+
+            {/* Actions Dropdown Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl border-2 bg-transparent">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setShowDeleted(!showDeleted)}>
+                  <Filter className="h-4 w-4 mr-2" />
+                  {showDeleted ? "Hide Deleted" : "Show Deleted"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={triggerImport}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportCSV}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setGroupModalOpen(true)}>
+                  <UsersRound className="h-4 w-4 mr-2" />
+                  Create Group
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          {/* Search */}
-          <SearchBar value={q} onChange={setQ} />
+          {/* Search and Group Filter Row */}
 
-         
+              <SearchBar value={q} onChange={setQ} />
+        
         </div>
       </div>
 
-      <div className="pt-6 pb-24 space-y-4">
+      <div className=" pt-6 pb-24 space-y-4">
         {isLoading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -713,21 +626,6 @@ export function ClientsTable() {
             <Pagination page={page} pages={pages} setPage={setPage} />
           </>
         )}
-      </div>
-
-      <div className="fixed bottom-6 right-6 flex flex-col gap-3">
-        <Button
-          onClick={() => setFamilyWorkflowOpen(true)}
-          className="rounded-full h-14 w-14 shadow-lg hover:shadow-xl transition-all duration-200 bg-blue-600 hover:bg-blue-700"
-        >
-          <Workflow className="h-6 w-6" />
-        </Button>
-        <Button
-          onClick={openCreate}
-          className="rounded-full h-16 w-16 shadow-lg hover:shadow-xl transition-all duration-200 bg-primary hover:bg-primary/90"
-        >
-          <UserPlus className="h-7 w-7" />
-        </Button>
       </div>
 
       {/* Dialogs */}

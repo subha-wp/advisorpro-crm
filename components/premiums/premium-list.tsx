@@ -5,11 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Filter, Download, Eye, Calendar, IndianRupee, User } from "lucide-react"
 import { format } from "date-fns"
-import { PremiumPaymentModal } from "./premium-payment-modal"
+import { PremiumPaymentDrawer } from "./premium-payment-modal"
 
 interface PremiumRecord {
   id: string
@@ -231,7 +230,7 @@ export function PremiumList() {
 
   return (
     <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -331,114 +330,133 @@ export function PremiumList() {
           </div>
         </CardContent>
       </Card>
+{/* card ui */}
+     <div className="space-y-4 p-2 sm:grid sm:grid-cols-2 sm:gap-4">
+  {filteredPremiums.length === 0 ? (
+    <Card className="border-none shadow-none bg-muted/40">
+      <CardContent className="text-center py-10 text-muted-foreground">
+        {searchQuery || statusFilter !== "ALL"
+          ? "No premiums found matching your criteria"
+          : "No premium records found"}
+      </CardContent>
+    </Card>
+  ) : (
+    filteredPremiums.map((premium) => (
+      <Card
+        key={premium.id}
+        className="group border border-gray-200 shadow-sm rounded-2xl bg-white/90 hover:shadow-md hover:scale-[1.01] transition"
+      >
+        <CardContent className="p-5">
+          <div className="space-y-5">
+            {/* Client Info */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <User className="h-6 w-6 text-primary" />
+                <div>
+                  <div className="font-semibold text-lg">{premium.client.name}</div>
+                  {premium.client.mobile && (
+                    <div className="text-sm text-muted-foreground">
+                      {premium.client.mobile}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>{getStatusBadge(premium.status, premium.dueDate)}</div>
+            </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Policy</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Payment Details</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPremiums.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    {searchQuery || statusFilter !== "ALL"
-                      ? "No premiums found matching your criteria"
-                      : "No premium records found"}
-                  </TableCell>
-                </TableRow>
+            {/* Policy Info */}
+            <div>
+              <div className="font-medium text-base">
+                {premium.policy.policyNumber}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {premium.policy.insurer}
+                {premium.policy.planName && ` – ${premium.policy.planName}`}
+              </div>
+            </div>
+
+            {/* Due Date */}
+            <div className="flex items-center space-x-3">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <div className="text-base font-medium">
+                  {format(new Date(premium.dueDate), "dd MMM yyyy")}
+                </div>
+                {premium.gracePeriodEnd && premium.status === "OVERDUE" && (
+                  <div className="text-xs text-muted-foreground">
+                    Grace: {format(new Date(premium.gracePeriodEnd), "dd MMM")}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Amount */}
+            <div className="flex items-center space-x-3">
+              <IndianRupee className="h-5 w-5 text-green-600" />
+              <div>
+                <div className="text-lg font-semibold text-green-700">
+                  ₹{premium.premiumAmount.toLocaleString()}
+                </div>
+                {premium.paidAmount && premium.paidAmount !== premium.premiumAmount && (
+                  <div className="text-sm text-muted-foreground">
+                    Paid: ₹{premium.paidAmount.toLocaleString()}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Payment Details */}
+            <div className="text-sm space-y-1">
+              {premium.status === "PAID" && premium.paymentDate ? (
+                <>
+                  <div>
+                    Paid on{" "}
+                    <span className="font-medium">
+                      {format(new Date(premium.paymentDate), "dd MMM yyyy")}
+                    </span>
+                  </div>
+                  {premium.paymentMode && (
+                    <div className="text-muted-foreground">{premium.paymentMode}</div>
+                  )}
+                  {premium.receiptNumber && (
+                    <div className="text-muted-foreground">#{premium.receiptNumber}</div>
+                  )}
+                </>
               ) : (
-                filteredPremiums.map((premium) => (
-                  <TableRow key={premium.id}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{premium.client.name}</span>
-                        </div>
-                        {premium.client.mobile && (
-                          <div className="text-sm text-muted-foreground">{premium.client.mobile}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="font-medium">{premium.policy.policyNumber}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {premium.policy.insurer}
-                          {premium.policy.planName && ` - ${premium.policy.planName}`}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span>{format(new Date(premium.dueDate), "dd MMM yyyy")}</span>
-                      </div>
-                      {premium.gracePeriodEnd && premium.status === "OVERDUE" && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Grace: {format(new Date(premium.gracePeriodEnd), "dd MMM")}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <IndianRupee className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">₹{premium.premiumAmount.toLocaleString()}</span>
-                      </div>
-                      {premium.paidAmount && premium.paidAmount !== premium.premiumAmount && (
-                        <div className="text-sm text-muted-foreground">
-                          Paid: ₹{premium.paidAmount.toLocaleString()}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(premium.status, premium.dueDate)}</TableCell>
-                    <TableCell>
-                      {premium.status === "PAID" && premium.paymentDate ? (
-                        <div className="space-y-1">
-                          <div className="text-sm">Paid: {format(new Date(premium.paymentDate), "dd MMM yyyy")}</div>
-                          {premium.paymentMode && (
-                            <div className="text-xs text-muted-foreground">{premium.paymentMode}</div>
-                          )}
-                          {premium.receiptNumber && (
-                            <div className="text-xs text-muted-foreground">#{premium.receiptNumber}</div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {premium.status !== "PAID" && (
-                          <Button variant="outline" size="sm" onClick={() => handlePayNow(premium)}>
-                            Pay Now
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                <span className="text-muted-foreground">Not Paid</span>
               )}
-            </TableBody>
-          </Table>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end space-x-2 pt-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-2 hover:bg-muted/50 rounded-full"
+              >
+                <Eye className="h-5 w-5" />
+              </Button>
+              {premium.status !== "PAID" && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="px-4 py-2 rounded-full"
+                  onClick={() => handlePayNow(premium)}
+                >
+                  Pay Now
+                </Button>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
+    ))
+  )}
+</div>
 
   
 
-      <PremiumPaymentModal
+      <PremiumPaymentDrawer
         isOpen={isPaymentModalOpen}
         onClose={() => {
           setIsPaymentModalOpen(false)
