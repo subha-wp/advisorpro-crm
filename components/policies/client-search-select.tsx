@@ -102,7 +102,6 @@ export function ClientSearchSelect({ selectedClientId, onClientSelect, className
         ...groupClients.filter((gc: Client) => !clients.some((c: Client) => c.id === gc.id)),
       ]
 
-      console.log("Search results:", uniqueResults) // Debug log
       setResults(uniqueResults)
     } catch (error) {
       console.error("Search error:", error)

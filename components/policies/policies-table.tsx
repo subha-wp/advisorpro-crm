@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Edit, Trash2, Download, Upload, Users, Building2 } from "lucide-react"
 import * as XLSX from "xlsx"
-import { EnhancedPolicyForm } from "./enhanced-policy-form"
+
 
 import {
   Drawer,
@@ -19,6 +19,7 @@ import {
   DrawerDescription,
   DrawerFooter,
 } from "@/components/ui/drawer"
+import { EnhancedPolicyForm } from "./EnhancedPolicyForm"
 
 type Policy = {
   id: string
