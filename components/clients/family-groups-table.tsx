@@ -217,7 +217,7 @@ export function FamilyGroupsTable() {
         </CardContent>
       </Card>
 
-      {/* ... existing dialogs with enhanced styling ... */}
+    
     </div>
   )
 }

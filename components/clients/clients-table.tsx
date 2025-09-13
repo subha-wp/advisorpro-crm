@@ -1,12 +1,12 @@
-// @ts-nocheck
+//@ts-nocheck
 "use client"
 
 import type React from "react"
-import { useMemo, useRef, useState } from "react"
-import useSWR from "swr"
+import { useMemo, useRef, useState, useEffect } from "react"
+import useSWRInfinite from "swr/infinite"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardTitle } from "@/components/ui/card"
+import { CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -24,14 +24,11 @@ import {
   Download,
   Upload,
   Filter,
-  Phone,
-  Mail,
-  CreditCard,
-  Hash,
-  MoreVertical,
   UsersRound,
+  Plus,
+  User,
+  MoreVertical,
 } from "lucide-react"
-import { FamilyWorkflow } from "./family-workflow"
 import * as XLSX from "xlsx"
 import { ClientCard } from "./client-card"
 
@@ -61,12 +58,11 @@ type Client = {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-const allowedSorts = ["createdAt", "updatedAt", "name", "email", "mobile"] as const
-type SortKey = (typeof allowedSorts)[number]
-
 const relationshipOptions = ["Head", "Spouse", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Other"]
 
+const PAGE_SIZE = 20
 
+// Search Bar
 const SearchBar: React.FC<{ value: string; onChange: (value: string) => void }> = ({ value, onChange }) => {
   return (
     <div className="relative">
@@ -89,39 +85,7 @@ const SearchBar: React.FC<{ value: string; onChange: (value: string) => void }> 
   )
 }
 
-const Pagination: React.FC<{
-  page: number
-  pages: number
-  setPage: (page: number) => void
-}> = ({ page, pages, setPage }) => {
-  return (
-    <div className="flex justify-center items-center gap-4 mt-6 pb-4">
-      <Button
-        variant="outline"
-        disabled={page <= 1}
-        onClick={() => setPage(page - 1)}
-        className="rounded-full h-12 px-6"
-      >
-        Previous
-      </Button>
-      <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
-        <span className="text-sm font-medium">
-          {page} of {pages}
-        </span>
-      </div>
-      <Button
-        variant="outline"
-        disabled={page >= pages}
-        onClick={() => setPage(page + 1)}
-        className="rounded-full h-12 px-6"
-      >
-        Next
-      </Button>
-    </div>
-  )
-}
-
-// Reusable Client Form Component
+// Reusable Client Form
 const ClientForm: React.FC<{
   form: any
   setForm: (form: any) => void
@@ -232,7 +196,10 @@ const ClientForm: React.FC<{
         ) : (
           <div className="space-y-2 mt-2">
             <Label>Select Existing Group</Label>
-            <Select value={form.clientGroupId} onValueChange={(value) => setForm({ ...form, clientGroupId: value })}>
+            <Select
+              value={form.clientGroupId || "none"}
+              onValueChange={(value) => setForm({ ...form, clientGroupId: value === "none" ? "" : value })}
+            >
               <SelectTrigger className="py-6">
                 <SelectValue placeholder="Choose a family group (optional)" />
               </SelectTrigger>
@@ -251,13 +218,14 @@ const ClientForm: React.FC<{
           <div className="space-y-2 mt-2">
             <Label>Relationship to Head</Label>
             <Select
-              value={form.relationshipToHead}
-              onValueChange={(value) => setForm({ ...form, relationshipToHead: value })}
+              value={form.relationshipToHead || "none"}
+              onValueChange={(value) => setForm({ ...form, relationshipToHead: value === "none" ? "" : value })}
             >
               <SelectTrigger className="py-6">
                 <SelectValue placeholder="Select relationship" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">None</SelectItem>
                 {relationshipOptions.map((rel) => (
                   <SelectItem key={rel} value={rel}>
                     {rel}
@@ -280,59 +248,15 @@ const ClientForm: React.FC<{
   )
 }
 
-// Reusable Group Form Component
-const GroupForm: React.FC<{
-  groupForm: { name: string; description: string }
-  setGroupForm: (form: any) => void
-  onSubmit: (e: React.FormEvent) => void
-  onCancel: () => void
-}> = ({ groupForm, setGroupForm, onSubmit, onCancel }) => {
-  return (
-    <form className="space-y-4" onSubmit={onSubmit}>
-      <div className="space-y-2">
-        <Label>Group Name *</Label>
-        <Input
-          value={groupForm.name}
-          onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
-          placeholder="e.g., Smith Family"
-          required
-          className="py-6"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Description</Label>
-        <Input
-          value={groupForm.description}
-          onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
-          placeholder="Optional description"
-          className="py-6"
-        />
-      </div>
-      <DialogFooter className="flex justify-between">
-        <Button type="button" variant="outline" onClick={onCancel} className="rounded-full bg-transparent">
-          Cancel
-        </Button>
-        <Button type="submit" className="rounded-full">
-          Create Group
-        </Button>
-      </DialogFooter>
-    </form>
-  )
-}
-
-// Main ClientsTable Component
+// Main ClientsTable
 export function ClientsTable() {
   const [q, setQ] = useState("")
   const [showDeleted, setShowDeleted] = useState(false)
-  const [page, setPage] = useState(1)
   const [selectedGroupId, setSelectedGroupId] = useState<string>("")
-  const pageSize = 20
-  const [sort, setSort] = useState<SortKey>("createdAt")
-  const [dir, setDir] = useState<"asc" | "desc">("desc")
-  const [familyWorkflowOpen, setFamilyWorkflowOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Client | null>(null)
-  const [groupModalOpen, setGroupModalOpen] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState({
     name: "",
@@ -349,30 +273,43 @@ export function ClientsTable() {
     groupName: "",
   })
 
-  const [groupForm, setGroupForm] = useState({ name: "", description: "" })
-
-  const url = useMemo(() => {
+  // SWR Infinite
+  const getKey = (pageIndex: number, previousPageData: any) => {
+    if (previousPageData && !previousPageData.items.length) return null
     const params = new URLSearchParams({
       q,
-      page: String(page),
-      pageSize: String(pageSize),
+      page: String(pageIndex + 1),
+      pageSize: String(PAGE_SIZE),
       deleted: String(showDeleted),
-      sort,
-      dir,
+      sort: "createdAt",
+      dir: "desc",
       ...(selectedGroupId ? { groupId: selectedGroupId } : {}),
     })
     return `/api/clients?${params.toString()}`
-  }, [q, page, pageSize, showDeleted, sort, dir, selectedGroupId])
+  }
 
-  const { data: groupsData, mutate: mutateGroups } = useSWR("/api/client-groups", fetcher)
-  const groups: ClientGroup[] = groupsData?.items ?? []
+  const { data, size, setSize, isValidating, mutate } = useSWRInfinite(getKey, fetcher)
+  const items: Client[] = data ? data.flatMap((d) => d.items) : []
+  const total = data?.[0]?.total ?? 0
+  const isReachingEnd = data && data[data.length - 1]?.items.length < PAGE_SIZE
 
-  const { data, mutate, isLoading } = useSWR(url, fetcher)
-  const items: Client[] = data?.items ?? []
-  const total = data?.total ?? 0
-  const pages = Math.max(1, Math.ceil(total / pageSize))
+  const { data: groupsData } = useSWRInfinite(() => "/api/client-groups", fetcher)
+  const groups: ClientGroup[] = groupsData?.[0]?.items ?? []
 
-  const inputRef = useRef<HTMLInputElement>(null)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!loadMoreRef.current) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isReachingEnd) {
+          setSize((s) => s + 1)
+        }
+      },
+      { rootMargin: "200px" }
+    )
+    observer.observe(loadMoreRef.current)
+    return () => observer.disconnect()
+  }, [setSize, isReachingEnd])
 
   function openCreate() {
     setEditing(null)
@@ -441,29 +378,6 @@ export function ClientsTable() {
     if (res.ok) {
       setOpen(false)
       mutate()
-      if (form.createNewGroup) {
-        mutateGroups()
-      }
-    }
-  }
-
-  async function submitGroupForm(e: React.FormEvent) {
-    e.preventDefault()
-    if (!groupForm.name.trim()) return
-
-    const res = await fetch("/api/client-groups", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: groupForm.name.trim(),
-        description: groupForm.description.trim() || undefined,
-      }),
-    })
-
-    if (res.ok) {
-      setGroupModalOpen(false)
-      setGroupForm({ name: "", description: "" })
-      mutateGroups()
     }
   }
 
@@ -477,82 +391,10 @@ export function ClientsTable() {
     mutate()
   }
 
-  function triggerImport() {
-    inputRef.current?.click()
-  }
-
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const data = await file.arrayBuffer()
-    const wb = XLSX.read(data)
-    const ws = wb.Sheets[wb.SheetNames[0]]
-    const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" })
-    for (const r of rows) {
-      const payload = {
-        name: String(r.name ?? "").trim(),
-        dob: String(r.dob ?? "").trim() || undefined,
-        panNo: String(r.panNo ?? "").trim() || undefined,
-        aadhaarNo: String(r.aadhaarNo ?? "").trim() || undefined,
-        mobile: String(r.mobile ?? "").trim() || undefined,
-        email: String(r.email ?? "").trim() || undefined,
-        address: String(r.address ?? "").trim() || undefined,
-        tags: String(r.tags ?? "")
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-      }
-      if (payload.name) {
-        await fetch("/api/clients", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        })
-      }
-    }
-    mutate()
-    e.target.value = ""
-  }
-
-  function toggleSort(key: SortKey) {
-    if (sort === key) {
-      setDir((d) => (d === "asc" ? "desc" : "asc"))
-    } else {
-      setSort(key)
-      setDir(key === "name" ? "asc" : "desc")
-    }
-  }
-
-  function handleFamilyWorkflowComplete() {
-    mutate()
-    mutateGroups()
-  }
-
-  function exportCSV() {
-    const rows = items.map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      dob: c.dob ?? "",
-      panNo: c.panNo ?? "",
-      aadhaarNo: c.aadhaarNo ?? "",
-      mobile: c.mobile ?? "",
-      email: c.email ?? "",
-      address: c.address ?? "",
-      tags: (c.tags ?? []).join(","),
-      familyGroup: c.clientGroup?.name ?? "",
-      relationship: c.relationshipToHead ?? "",
-      deletedAt: c.deletedAt ?? "",
-    }))
-    const ws = XLSX.utils.json_to_sheet(rows)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "Clients")
-    XLSX.writeFile(wb, "clients.csv")
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      <div className="sticky top-0 z-40 bg-white  border-b">
-        <div className="space-y-4 pb-2">
+      <div className="sticky top-0 z-40 bg-white/95  border-b ">
+        <div className="space-y-4 p-4">
           {/* Header */}
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
@@ -566,73 +408,100 @@ export function ClientsTable() {
                 <p className="text-sm text-muted-foreground">{total} total clients</p>
               </div>
             </div>
-
-            {/* Actions Dropdown Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl border-2 bg-transparent">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => setShowDeleted(!showDeleted)}>
-                  <Filter className="h-4 w-4 mr-2" />
-                  {showDeleted ? "Hide Deleted" : "Show Deleted"}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={triggerImport}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportCSV}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setGroupModalOpen(true)}>
-                  <UsersRound className="h-4 w-4 mr-2" />
-                  Create Group
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="rounded-full"
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="rounded-full">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => setShowDeleted(!showDeleted)}>
+                    <Filter className="h-4 w-4 mr-2" />
+                    {showDeleted ? "Hide Deleted" : "Show Deleted"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
-          {/* Search and Group Filter Row */}
+          {/* Search Bar */}
+          <SearchBar value={q} onChange={setQ} />
 
-              <SearchBar value={q} onChange={setQ} />
-        
+          {/* Filters */}
+          {showFilters && (
+            <div className="space-y-3 p-4 bg-muted/30 rounded-2xl border">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Filter by Family Group</Label>
+                <Select value={selectedGroupId || "all"} onValueChange={(value) => setSelectedGroupId(value === "all" ? "" : value)}>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="All clients" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All clients</SelectItem>
+                    {groups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name} ({group._count.clients} members)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className=" pt-6 pb-24 space-y-4">
-        {isLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading clients...</p>
-          </div>
+      <div className="pt-6 pb-32 space-y-4">
+        {isValidating && items.length === 0 ? (
+          <div className="text-center py-12">Loading clients...</div>
         ) : items.length === 0 ? (
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium text-muted-foreground">No clients found</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {q ? `No results for "${q}"` : "Start by adding your first client"}
-            </p>
-          </div>
+          <div className="text-center py-16">No clients found</div>
         ) : (
           <>
             {items.map((client) => (
-              <ClientCard key={client.id} client={client} onEdit={openEdit} onDelete={onDelete} onRestore={onRestore} />
+              <ClientCard key={client.id} client={client} onEdit={() => openEdit(client)} onDelete={onDelete} onRestore={onRestore} />
             ))}
-            <Pagination page={page} pages={pages} setPage={setPage} />
+            {!isReachingEnd && (
+              <div ref={loadMoreRef} className="h-16 flex items-center justify-center text-sm text-muted-foreground">
+                {isValidating ? "Loading more..." : "Scroll to load more"}
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* Dialogs */}
+      {/* Floating Action Button */}
+      <div className="fixed bottom-20 right-4 z-50">
+        <Button
+          onClick={openCreate}
+          className="h-16 w-16 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
+      </div>
+
+      {/* Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[95vh] overflow-y-auto max-w-[95vw] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Client" : "Add Client"}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              {editing ? "Edit Client" : "Add New Client"}
+            </DialogTitle>
           </DialogHeader>
           <ClientForm
             form={form}
@@ -644,24 +513,6 @@ export function ClientsTable() {
           />
         </DialogContent>
       </Dialog>
-      <Dialog open={groupModalOpen} onOpenChange={setGroupModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Family Group</DialogTitle>
-          </DialogHeader>
-          <GroupForm
-            groupForm={groupForm}
-            setGroupForm={setGroupForm}
-            onSubmit={submitGroupForm}
-            onCancel={() => setGroupModalOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-      <FamilyWorkflow
-        open={familyWorkflowOpen}
-        onOpenChange={setFamilyWorkflowOpen}
-        onComplete={handleFamilyWorkflowComplete}
-      />
     </div>
   )
 }

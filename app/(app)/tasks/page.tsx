@@ -36,21 +36,12 @@ export default function TasksPage() {
   return (
     <section className="space-y-6 pb-20">
       {/* Sticky Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold">Tasks</h1>
-            <p className="text-xs text-muted-foreground">
-              Track follow-ups, renewals & activities
-            </p>
+            <h1 className="text-2xl font-semibold">Tasks</h1>
+
           </div>
-          <Button
-            size="sm"
-            onClick={() => setCreateOpen(true)}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full shadow-md"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
         </div>
       </header>
 
@@ -182,9 +173,9 @@ export default function TasksPage() {
       {/* Floating Action Button */}
       <Button
         onClick={() => setCreateOpen(true)}
-        className="fixed bottom-16 right-6 h-10 w-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
+        className="fixed bottom-16 right-6 h-12 w-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
       >
-        <Plus className="h-6 w-6" />
+        <Plus className="h-12 w-12" />
       </Button>
 
       {/* Create Activity Dialog */}
