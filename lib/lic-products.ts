@@ -203,6 +203,44 @@ export const lic_products: LICProduct[] = [
     last_updated: new Date().toISOString(),
   },
   {
+  plan_name: "LIC's Jeevan Tarun",
+  plan_no: 734,
+  uin: "512N299V03",
+  category: "Child",
+  nature: { participating: true, linked: false, type: "Savings + Protection" },
+  status: "Active",
+  eligibility: {
+    min_age: 0.08,                // 30 days ≈ 0.08 years
+    max_age: 12,
+    term_range_years: "13-25",    // policy term = 25 - entry_age; range for entry ages 0–12
+    ppt_options: "20 - age at entry (years)",
+    min_sum_assured: 200000,
+    max_sum_assured: null,
+  },
+  premium: {
+    modes: ["Yearly", "Half-Yearly", "Quarterly", "Monthly (NACH/Salary)"],
+    modal_factors: null,
+    high_sa_rebate: null,
+    mode_rebate: null,
+    gst_applicable: true,
+  },
+  benefits: {
+    death_benefit: "Higher of 125% of Basic Sum Assured or 7 × annualised premium, subject to minimum 105% of premiums paid",
+    maturity_benefit: "Basic Sum Assured + vested bonuses + FAB (if any)",
+    survival_benefit: "Optional staged survival payouts at child ages 20-24 (5% / 10% / 15% options)",
+    bonus_type: "Reversionary + Final (if declared)",
+  },
+  riders_allowed: [
+    "Premium Waiver Benefit Rider",
+    "Accidental Death & Disability Benefit Rider",
+  ],
+  surrender_loan: {
+    surrender: "Surrender as per brochure; loan facility subject to terms after the lock-in",
+    loan: "Loan available as per corporation rules and policy terms",
+  },
+  last_updated: new Date().toISOString(),
+},
+  {
     plan_name: "LIC's Jeevan Labh",
     plan_no: 736,
     uin: "512N304V03",
@@ -749,6 +787,7 @@ export const lic_products: LICProduct[] = [
     surrender_loan: { surrender: "As per brochure", loan: "Not applicable" },
     last_updated: new Date().toISOString(),
   },
+ 
   {
     plan_name: "LIC’s Yuva Term",
     plan_no: 875,
@@ -780,6 +819,45 @@ export const lic_products: LICProduct[] = [
     riders_allowed: ["Accident Benefit Rider (if permitted)"],
     surrender_loan: { surrender: "Typically none", loan: "Not applicable" },
     last_updated: new Date().toISOString(),
+  },
+  {
+  plan_name: "LIC's Index Plus+",
+  plan_no: 873,
+  uin: "512L354V01",
+  category: "ULIP",
+  nature: { participating: false, linked: true, type: "Savings + Protection" },
+  status: "Withdrawn",
+  eligibility: {
+    min_age: 0.25,                
+    max_age: 50,
+    term_range_years: "10-25",
+    ppt_options: [10, 15, 20, 25],
+    min_sum_assured: null,
+    max_sum_assured: null,
+  },
+  premium: {
+    modes: ["Yearly", "Half-Yearly", "Quarterly", "Monthly (NACH/Salary)"],
+    modal_factors: null,
+    high_sa_rebate: null,
+    mode_rebate: null,
+    gst_applicable: true,
+  },
+  benefits: {
+    death_benefit: "As per policy terms — typically higher of Fund Value or Sum Assured as per the brochure",
+    maturity_benefit: "Fund Value subject to policy terms",
+    survival_benefit: null,
+    bonus_type: null,
+  },
+  riders_allowed: [
+    "Accident Benefit Rider",
+    "Accidental Death & Disability Benefit Rider",
+    "Premium Waiver Benefit Rider",
+  ],
+  surrender_loan: {
+    surrender: "Allowed after lock-in period of 5 years; surrender value as per policy terms",
+    loan: "Loan subject to policy terms and fund value availability",
+  },
+  last_updated: new Date().toISOString(),
   },
   {
     plan_name: "LIC's New Tech-Term",

@@ -122,12 +122,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   return NextResponse.json({ item })
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const {id} = await params
   const session = await requireRole(ROLES.STAFF)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const prisma = await getPrisma()
   const item = await prisma.client.update({
-    where: { id: params.id },
+    where: { id: id },
     data: { deletedAt: new Date() },
   })
   return NextResponse.json({ item })

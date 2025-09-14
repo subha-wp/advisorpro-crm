@@ -9,9 +9,6 @@ import { BasicDetailsTab } from './BasicDetailsTab';
 import { PremiumCalculationTab } from './PremiumCalculationTab';
 import { PaymentDetailsTab } from './PaymentDetailsTab';
 import { AdvancedOptionsTab } from './AdvancedOptionsTab';
-
-
-
 import { FormState, LICProduct } from '@/lib/policy-form/types';
 import { premiumModes } from '@/lib/policy-form/constants';
 import { lic_products } from '@/lib/lic-products';
