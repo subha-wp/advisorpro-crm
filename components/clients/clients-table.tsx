@@ -22,15 +22,14 @@ import {
   Search,
   X,
   Download,
-  Upload,
   Filter,
-  UsersRound,
   Plus,
   User,
   MoreVertical,
 } from "lucide-react"
 import * as XLSX from "xlsx"
 import { ClientCard } from "./client-card"
+import { toast } from "@/components/ui/use-toast"
 
 // Types
 type ClientGroup = {
@@ -93,9 +92,11 @@ const ClientForm: React.FC<{
   editing: Client | null
   onSubmit: (e: React.FormEvent) => void
   onCancel: () => void
-}> = ({ form, setForm, groups, editing, onSubmit, onCancel }) => {
+  submitting: boolean
+  success: boolean
+}> = ({ form, setForm, groups, editing, onSubmit, onCancel, submitting, success }) => {
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
+    <form className="space-y-4" onSubmit={onSubmit} id="client-form">
       <div className="space-y-2">
         <Label>Name *</Label>
         <Input
@@ -236,12 +237,20 @@ const ClientForm: React.FC<{
           </div>
         )}
       </div>
-      <DialogFooter className="mt-4 flex justify-between">
+      <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-between">
         <Button type="button" variant="outline" onClick={onCancel} className="rounded-full bg-transparent">
           Cancel
         </Button>
-        <Button type="submit" className="rounded-full">
-          {editing ? "Save changes" : "Create Client"}
+        <Button
+          type="submit"
+          form="client-form"
+          className="rounded-full flex items-center justify-center gap-2"
+          disabled={submitting || success}
+        >
+          {submitting && !success && (
+            <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          )}
+          {success ? "✔ Success!" : (editing ? "Save changes" : "Create Client")}
         </Button>
       </DialogFooter>
     </form>
@@ -256,6 +265,8 @@ export function ClientsTable() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Client | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState({
@@ -351,6 +362,24 @@ export function ClientsTable() {
 
   async function submitForm(e: React.FormEvent) {
     e.preventDefault()
+
+    if (!form.name.trim()) {
+      toast({ title: "Validation Error", description: "Client name is required", variant: "destructive" })
+      return
+    }
+
+    if (form.createNewGroup && !form.groupName.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Family group name is required when creating a new group",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSubmitting(true)
+    setSuccess(false)
+
     const payload: any = {
       name: form.name.trim(),
       dob: form.dob || undefined,
@@ -359,25 +388,43 @@ export function ClientsTable() {
       mobile: form.mobile.trim() || undefined,
       email: form.email.trim() || undefined,
       address: form.address.trim() || undefined,
-      tags: form.tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
+      tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
       clientGroupId: form.clientGroupId || undefined,
       relationshipToHead: form.relationshipToHead || undefined,
       createNewGroup: form.createNewGroup,
       groupName: form.groupName.trim() || undefined,
     }
-    if (!payload.name) return
 
-    const res = await fetch(editing ? `/api/clients/${editing.id}` : "/api/clients", {
-      method: editing ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-    if (res.ok) {
-      setOpen(false)
-      mutate()
+    try {
+      const res = await fetch(editing ? `/api/clients/${editing.id}` : "/api/clients", {
+        method: editing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        setSuccess(true)
+
+        toast({
+          title: editing ? "Client Updated" : "Client Created",
+          description: `${payload.name} has been ${editing ? "updated" : "created"} successfully`,
+        })
+
+        mutate()
+
+        setTimeout(() => {
+          setOpen(false)
+          setSuccess(false)
+        }, 1200)
+      } else {
+        toast({ title: "Error", description: data.error || "Failed", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error. Please try again.", variant: "destructive" })
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -393,7 +440,7 @@ export function ClientsTable() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      <div className="sticky top-0 z-40 bg-white/95  border-b ">
+      <div className="sticky top-0 z-40 bg-white/95 border-b ">
         <div className="space-y-4 p-4">
           {/* Header */}
           <div className="flex justify-between items-center">
@@ -510,6 +557,8 @@ export function ClientsTable() {
             editing={editing}
             onSubmit={submitForm}
             onCancel={() => setOpen(false)}
+            submitting={submitting}
+            success={success}
           />
         </DialogContent>
       </Dialog>

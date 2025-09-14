@@ -9,6 +9,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, D
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Users, Phone, CreditCard, Hash, Trash2, Edit, FileText, Info, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {  format, isValid, parseISO } from "date-fns"
 
 type Client = {
   id: string
@@ -35,23 +36,18 @@ interface ClientCardProps {
 // Utility function to format date
 const formatDate = (date?: string): string => {
   if (!date) return "N/A"
-  
-  // Handle specific malformed format like "25T00:00:00.000Z/09/2000"
-  const malformedMatch = date.match(/^(\d{2})T00:00:00\.000Z\/(\d{2})\/(\d{4})$/)
-  if (malformedMatch) {
-    const [, day, month, year] = malformedMatch
-    return `${day}/${month}/${year}`
-  }
-  
-  // Fallback for standard YYYY-MM-DD format
-  try {
-    const [year, month, day] = date.split("-")
-    return `${day}/${month}/${year}`
-  } catch {
-    return date // Return original if parsing fails
-  }
-}
 
+  try {
+    const parsed = parseISO(date) // handles "2000-02-14T00:00:00.000Z"
+    if (isValid(parsed)) {
+      return format(parsed, "dd-MM-yyyy") // → 14-02-2000
+    }
+  } catch {
+    return date
+  }
+
+  return date
+}
 export const ClientCard: React.FC<ClientCardProps> = ({ client, onEdit, onDelete, onRestore }) => {
   const [showAadhaar, setShowAadhaar] = useState(false)
   const [isDeleteDrawerOpen, setIsDeleteDrawerOpen] = useState(false)
@@ -140,7 +136,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onEdit, onDelete
             <Badge
               variant="outline"
               className="flex items-center gap-1 text-xs py-0.5 px-2 border-gray-300 rounded-full transition-colors duration-200 hover:bg-gray-100"
-              aria-label={`DOB: ${formatDate(client.dob)}`}
+
             >
               <Calendar className="h-3 w-3" aria-hidden="true" />
               {formatDate(client.dob)}
