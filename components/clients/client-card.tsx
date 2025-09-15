@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Users, Phone, CreditCard, Hash, Trash2, Edit, FileText, Info, Calendar } from "lucide-react"
+import { Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {  format, isValid, parseISO } from "date-fns"
 
@@ -52,6 +53,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onEdit, onDelete
   const [showAadhaar, setShowAadhaar] = useState(false)
   const [isDeleteDrawerOpen, setIsDeleteDrawerOpen] = useState(false)
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false)
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   console.log(client);
   
 
@@ -59,6 +61,35 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onEdit, onDelete
     onDelete(client.id)
     setIsDeleteDrawerOpen(false)
   }
+
+ const handleDownloadReport = async () => {
+  setIsGeneratingReport(true)
+  try {
+    const response = await fetch(`/api/clients/${client.id}/report`, {
+      method: "GET",
+    })
+
+    if (!response.ok) throw new Error("Failed to generate PDF report")
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }))
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `client-report-${client.name.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date()
+      .toISOString()
+      .split("T")[0]}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error("Error generating report:", error)
+    alert("Failed to generate report. Please try again.")
+  } finally {
+    setIsGeneratingReport(false)
+  }
+}
+
 
   return (
     <Card
@@ -268,6 +299,19 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onEdit, onDelete
                   </DrawerFooter>
                 </DrawerContent>
               </Drawer>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDownloadReport}
+                disabled={isGeneratingReport}
+                className="flex-1 rounded-lg h-9 text-sm font-medium border-green-300 text-green-700 hover:bg-green-50 transition-colors duration-200"
+                aria-label={`Download report for ${client.name}`}
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
+                {isGeneratingReport ? "Generating..." : "Download Report"}
+              </Button>
             </div>
             <Drawer open={isDeleteDrawerOpen} onOpenChange={setIsDeleteDrawerOpen}>
               <DrawerTrigger asChild>
