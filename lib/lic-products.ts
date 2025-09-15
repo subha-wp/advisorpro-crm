@@ -826,7 +826,7 @@ export const lic_products: LICProduct[] = [
   uin: "512L354V01",
   category: "ULIP",
   nature: { participating: false, linked: true, type: "Savings + Protection" },
-  status: "Withdrawn",
+  status: "Active",
   eligibility: {
     min_age: 0.25,                
     max_age: 50,

@@ -33,6 +33,32 @@ export function EnhancedPolicyForm({
   const [selectedLICProduct, setSelectedLICProduct] = useState<LICProduct | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Helpers
+  const parseTermRange = (term: string | number | null): { min?: number; max?: number; exact?: number } => {
+    if (term == null) return {};
+    if (typeof term === "number") return { exact: term };
+    const cleaned = term.replace(/[^0-9\-]/g, "");
+    if (/^\d+$/.test(cleaned)) return { exact: Number(cleaned) };
+    const match = cleaned.match(/(\d+)-(\d+)/);
+    if (match) {
+      const min = Number(match[1]);
+      const max = Number(match[2]);
+      if (!isNaN(min) && !isNaN(max)) return { min, max };
+    }
+    return {};
+  };
+
+  const calculateAgeYears = (dobISO?: string, entryDate?: Date | null): number | null => {
+    if (!dobISO) return null;
+    const dob = new Date(dobISO);
+    const asOf = entryDate ?? new Date();
+    if (isNaN(dob.getTime())) return null;
+    let age = asOf.getFullYear() - dob.getFullYear();
+    const m = asOf.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && asOf.getDate() < dob.getDate())) age--;
+    return age;
+  };
+
   // Form state
   const [form, setForm] = useState<FormState>({
     clientId: "",
@@ -114,14 +140,9 @@ export function EnhancedPolicyForm({
         };
 
         // Set policy term
-        if (typeof product.eligibility.term_range_years === "string") {
-          const termMatch = product.eligibility.term_range_years.match(/(\d+)/);
-          if (termMatch) {
-            updates.policyTerm = termMatch[1];
-          }
-        } else if (typeof product.eligibility.term_range_years === "number") {
-          updates.policyTerm = product.eligibility.term_range_years.toString();
-        }
+        const range = parseTermRange(product.eligibility.term_range_years);
+        if (range.exact) updates.policyTerm = String(range.exact);
+        else if (range.min) updates.policyTerm = String(range.min);
 
         // Set premium paying term
         if (Array.isArray(product.eligibility.ppt_options)) {
@@ -236,13 +257,44 @@ export function EnhancedPolicyForm({
     if (!form.sumAssured) newErrors.sumAssured = "Sum assured is required";
 
     // LIC specific validations
-    if (selectedLICProduct && form.sumAssured) {
-      const sa = Number.parseFloat(form.sumAssured);
-      if (selectedLICProduct.eligibility.min_sum_assured && sa < selectedLICProduct.eligibility.min_sum_assured) {
-        newErrors.sumAssured = `Minimum sum assured is ₹${selectedLICProduct.eligibility.min_sum_assured.toLocaleString("en-IN")}`;
+    if (selectedLICProduct) {
+      // Sum assured range
+      if (form.sumAssured) {
+        const sa = Number.parseFloat(form.sumAssured);
+        if (selectedLICProduct.eligibility.min_sum_assured && sa < selectedLICProduct.eligibility.min_sum_assured) {
+          newErrors.sumAssured = `Minimum sum assured is ₹${selectedLICProduct.eligibility.min_sum_assured.toLocaleString("en-IN")}`;
+        }
+        if (selectedLICProduct.eligibility.max_sum_assured && sa > selectedLICProduct.eligibility.max_sum_assured) {
+          newErrors.sumAssured = `Maximum sum assured is ₹${selectedLICProduct.eligibility.max_sum_assured.toLocaleString("en-IN")}`;
+        }
       }
-      if (selectedLICProduct.eligibility.max_sum_assured && sa > selectedLICProduct.eligibility.max_sum_assured) {
-        newErrors.sumAssured = `Maximum sum assured is ₹${selectedLICProduct.eligibility.max_sum_assured.toLocaleString("en-IN")}`;
+
+      // Age eligibility (based on client DOB and commencement date)
+      const entryAge = calculateAgeYears(selectedClient?.dob, form.commencementDate);
+      if (entryAge != null) {
+        const { min_age, max_age } = selectedLICProduct.eligibility as any;
+        if (typeof min_age === "number" && entryAge < Math.floor(min_age)) {
+          newErrors.commencementDate = `Minimum entry age is ${min_age} years`;
+        }
+        if (typeof max_age === "number" && entryAge > Math.floor(max_age)) {
+          newErrors.commencementDate = `Maximum entry age is ${max_age} years`;
+        }
+      }
+
+      // Policy term range validation
+      if (form.policyTerm) {
+        const range = parseTermRange(selectedLICProduct.eligibility.term_range_years);
+        const termYears = Number.parseInt(form.policyTerm);
+        if (!isNaN(termYears)) {
+          if (range.exact && termYears !== range.exact) {
+            newErrors.policyTerm = `Policy term must be ${range.exact} years`;
+          }
+          if (range.min && range.max) {
+            if (termYears < range.min || termYears > range.max) {
+              newErrors.policyTerm = `Policy term must be between ${range.min}-${range.max} years`;
+            }
+          }
+        }
       }
     }
 
@@ -422,7 +474,17 @@ export function EnhancedPolicyForm({
   ];
 
   const isLIC = form.insurer === "LIC of India";
-  const licPlans = lic_products.filter((p:any) => p.status === "Active");
+  // Show all active LIC plans, but also include plan 873 (Index Plus) and the currently selected plan (for updates)
+  const licPlans = React.useMemo(() => {
+    const base = lic_products.filter((p: any) => p.status === "Active" || p.plan_no === 873);
+    if (policy?.planName) {
+      const current = lic_products.find((p: any) => p.plan_name === policy.planName);
+      if (current && !base.some((p: any) => p.plan_name === current.plan_name)) {
+        return [...base, current];
+      }
+    }
+    return base;
+  }, [policy]);
 
   const renderTabContent = () => {
     switch (activeTab) {

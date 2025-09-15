@@ -88,7 +88,8 @@ export function BasicDetailsTab({
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal rounded-lg",
-                      !form.commencementDate && "text-muted-foreground"
+                      !form.commencementDate && "text-muted-foreground",
+                      errors.commencementDate && "border-red-500"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -104,6 +105,11 @@ export function BasicDetailsTab({
                   />
                 </PopoverContent>
               </Popover>
+              {errors.commencementDate && (
+                <p className="text-xs text-red-600 flex items-center gap-1">
+                  {errors.commencementDate}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -235,8 +241,10 @@ export function BasicDetailsTab({
                 onChange={(e) => setForm((f: any) => ({ ...f, policyTerm: e.target.value }))}
                 placeholder="20"
                 className="rounded-lg"
-                readOnly={isLIC && !!selectedLICProduct}
               />
+              {errors.policyTerm && (
+                <p className="text-xs text-red-600">{errors.policyTerm}</p>
+              )}
               {isLIC && selectedLICProduct && selectedLICProduct.eligibility.term_range_years && (
                 <p className="text-xs text-blue-600">
                   Available: {selectedLICProduct.eligibility.term_range_years}
@@ -252,7 +260,6 @@ export function BasicDetailsTab({
                 onChange={(e) => setForm((f: any) => ({ ...f, premiumPayingTerm: e.target.value }))}
                 placeholder="15"
                 className="rounded-lg"
-                readOnly={isLIC && !!selectedLICProduct}
               />
               {isLIC && selectedLICProduct && selectedLICProduct.eligibility.ppt_options && (
                 <p className="text-xs text-blue-600">
